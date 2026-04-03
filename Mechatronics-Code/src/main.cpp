@@ -6,6 +6,7 @@
 
 int tranistionHole_closed = 90;
 int tranistionHole_open = 150;
+int lightSensor_threshold = 50;
 
 Servo transitionHole_servo;
 
