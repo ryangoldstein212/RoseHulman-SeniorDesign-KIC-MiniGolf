@@ -3,22 +3,23 @@
 
 // Digital Pin definitions
 #define servoPin 9
-
+\
 // Analog Pin definitions
 #define transitionHole_sensorPin 0
 #define pointValue_15_sensorPin 1 // analog port for sensors 1-5
 #define pointValue_610_sensorPin 2 // analog port for sensors 6-10
 
 // Global variable setting
-int tranistionHole_closed = 90;
-int tranistionHole_open = 150;
+int transitionHole_closed = 90;
+int transitionHole_open = 150;
 int lightSensor_threshold = 50;
-int point_threshold = 20
+int point_threshold = 20;
 long pointValue_1_threshold = 325;
 long pointValue_2_threshold = 415;
 long pointValue_3_threshold = 620;
 long pointValue_4_threshold = 690;
 long pointValue_5_threshold = 830;
+int detectionCount = 0;
 
 bool detectedHand = false;
 bool finalHole = false;
@@ -46,32 +47,38 @@ void setup() {
 }
 
 void loop() {
-  /*
-  // Plinko and upper step system are on only
+  
+  // Plinko and upper step system are on only until detection count is at 2
+  
   
 
   // Upper Step into Transition Hole
-  if detectionCount >= 2 {
+  if (detectionCount >= 2) {
     detectedHand = true;
+  }else{
+    analogRead(pointValue_15_sensorPin);
+    analogRead(pointValue_610_sensorPin);
+
   }
 
-  if detectedHand = true {
+  if (detectedHand = true) {
     // When a hand is detected, open transition hole and then set timer for 30 sec before closing
     transitionHole_servo.write(transitionHole_open);
+    detectionCount = 0;
   }
 
-  if detectedHand_time = 30 {
+  if (detectedHand_time = 30) {
     // After 30 seconds has passed, close servo and end detectedHand state
     transitionHole_servo.write(transitionHole_closed);
     detectedHand = false;
   }
   // Lower Step
-  if finalHole == true {
+  if (finalHole == true) {
 
   }
   // End
 
-  */
+  /*
 
   //testing
   transitionHole_servo.write(tranistionHole_open);
@@ -80,7 +87,7 @@ void loop() {
   Serial.print(transitionHole_sensorValue);
   Serial.print("\n       ");
   
-
+  */
   
 }
 
