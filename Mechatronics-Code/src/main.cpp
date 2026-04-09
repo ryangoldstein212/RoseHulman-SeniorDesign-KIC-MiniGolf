@@ -21,17 +21,14 @@ long pointValue_4_threshold = 690;
 long pointValue_5_threshold = 830;
 int detectionCount = 0;
 
+bool impulseDetected = false;
 bool detectedHand = false;
 bool finalHole = false;
 
 // counter and timer setting
 int handDetection_count = 0;
 int playerScore = 0;
-int pointValue_1 = 25;
-int pointValue_2 = 50;
-int pointValue_3 = 75;
-int pointValue_4 = 100;
-int pointValue_5 = 125;
+
 
 // Transition hole servo object
 Servo transitionHole_servo;
@@ -47,19 +44,34 @@ void setup() {
 }
 
 void loop() {
-  
   // Plinko and upper step system are on only until detection count is at 2
-  
-  
-
-  // Upper Step into Transition Hole
   if (detectionCount >= 2) {
     detectedHand = true;
   }else{
-    analogRead(pointValue_15_sensorPin);
-    analogRead(pointValue_610_sensorPin);
+    pointSensor_15_value = analogRead(pointValue_15_sensorPin);
+    pointSensor_610_value = analogRead(pointValue_610_sensorPin);
 
+    // Impulse Detection. Detects when spike begins, run until max spike value is detected, and then assign points to that max value based on point thresholds
+    impulseDetection_threshold = 50;
+    pointSensor_15_max = 0;
+    pointSensor_610_max = 0;
+    if (pointSensor_15_value > impulseDetection_threshold){
+        impulsedDetected = true;
+        if (pointSensor_15_value > pointSensor_15_max){
+          pointSensor_15_max = pointSensor_15_value;
+          
+        }
+    }
+    
+    if (pointSensor_610_value > pointSensor_610_max){
+      pointSensor_610_max = pointSensor_610_value;
+    }
+    
+    // Assign points to player score
+    bool pointValue_1_sensor_15_condition = (pointSensor_15_max > (pointValue_1_threshold - point_threshold)) && (pointSensor_15_max < (pointValue_1_threshold + point_threshold));
+    bool pointValue_2_sensor
   }
+
 
   if (detectedHand = true) {
     // When a hand is detected, open transition hole and then set timer for 30 sec before closing
@@ -92,9 +104,6 @@ void loop() {
 }
 
 // put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
-}
 
 long countScore(int ){
 
