@@ -3,7 +3,7 @@
 
 // Digital Pin definitions
 #define servoPin 9
-\
+
 // Analog Pin definitions
 #define transitionHole_sensorPin 0
 #define pointValue_15_sensorPin 1 // analog port for sensors 1-5
@@ -12,6 +12,7 @@
 // Global variable setting
 int transitionHole_closed = 90;
 int transitionHole_open = 150;
+  //Plinko detection thresholds
 int lightSensor_threshold = 50;
 int point_threshold = 20;
 long pointValue_1_threshold = 325;
@@ -19,6 +20,14 @@ long pointValue_2_threshold = 415;
 long pointValue_3_threshold = 620;
 long pointValue_4_threshold = 690;
 long pointValue_5_threshold = 830;
+
+  //Point assignments
+int pointValue_1 = 20;
+int pointValue_2 = 20;
+int pointValue_3 = 20;
+int pointValue_4 = 20;
+int pointValue_5 = 20;
+
 int detectionCount = 0;
 
 bool impulseDetected = false;
@@ -39,37 +48,20 @@ int myFunction(int, int);
 void setup() {
   // put your setup code here, to run once:
   transitionHole_servo.attach(servoPin);
+  pinMode(8, OUTPUT);
 
   Serial.begin(9600);
 }
 
 void loop() {
+  
   // Plinko and upper step system are on only until detection count is at 2
   if (detectionCount >= 2) {
     detectedHand = true;
   }else{
     pointSensor_15_value = analogRead(pointValue_15_sensorPin);
     pointSensor_610_value = analogRead(pointValue_610_sensorPin);
-
-    // Impulse Detection. Detects when spike begins, run until max spike value is detected, and then assign points to that max value based on point thresholds
-    impulseDetection_threshold = 50;
-    pointSensor_15_max = 0;
-    pointSensor_610_max = 0;
-    if (pointSensor_15_value > impulseDetection_threshold){
-        impulsedDetected = true;
-        if (pointSensor_15_value > pointSensor_15_max){
-          pointSensor_15_max = pointSensor_15_value;
-          
-        }
-    }
     
-    if (pointSensor_610_value > pointSensor_610_max){
-      pointSensor_610_max = pointSensor_610_value;
-    }
-    
-    // Assign points to player score
-    bool pointValue_1_sensor_15_condition = (pointSensor_15_max > (pointValue_1_threshold - point_threshold)) && (pointSensor_15_max < (pointValue_1_threshold + point_threshold));
-    bool pointValue_2_sensor
   }
 
 
@@ -89,21 +81,56 @@ void loop() {
 
   }
   // End
-
+  
+  
   /*
-
   //testing
   transitionHole_servo.write(tranistionHole_open);
   
   int transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
-  Serial.print(transitionHole_sensorValue);
+  Serial.print(digitalRead(8));
   Serial.print("\n       ");
-  
   */
+  
   
 }
 
 // put function definitions here:
+
+void impulseDetecton(int readValue, int threshold){
+  int max = 0;
+  bool detectImpulse = false
+  //checks if readValue reaches the impulse detection threshold
+  if readValue > threshold{
+    // if the impulse detection threshold is met, then continuously update max
+    if readValue > max{
+      max = readValue;
+      detectImpulse = true;
+    }else{
+      if readValue < (threshold + 5){
+        calculatePoints(max);
+        detectImpulse = false;
+      }
+    }
+  }
+
+}
+
+int calculatePoints(int impulsePeak){
+  if (impulsePeak > (pointValue_1_threshold - point_threshold)) && (impulsePeak < (pointValue_1_threshold + point_threshold)){
+    playerScore &plus;= pointValue_1;
+  }elseif (impulsePeak > (pointValue_2_threshold - point_threshold)) && (impulsePeak < (pointValue_2_threshold + point_threshold)){
+    playerScore &plus;= pointValue_2;
+  }elseif (impulsePeak > (pointValue_3_threshold - point_threshold)) && (impulsePeak < (pointValue_3_threshold + point_threshold)){
+    playerScore &plus;= pointValue_3;
+  }elseif (impulsePeak > (pointValue_4_threshold - point_threshold)) && (impulsePeak < (pointValue_4_threshold + point_threshold)){
+    playerScore &plus;= pointValue_4;
+  }elseif (impulsePeak > (pointValue_5_threshold - point_threshold)) && (impulsePeak < (pointValue_5_threshold + point_threshold)){
+    playerScore &plus;= pointValue_5;
+  }
+  return(playerScore);
+
+}
 
 long countScore(int ){
 
