@@ -9,10 +9,11 @@
 #define pointValue_15_sensorPin 1 // analog port for sensors 1-5
 #define pointValue_610_sensorPin 2 // analog port for sensors 6-10
 
-// Global variable setting
+// Servo positions
 int transitionHole_closed = 90;
 int transitionHole_open = 150;
-  //Plinko detection thresholds
+
+//Plinko detection thresholds
 int lightSensor_threshold = 50;
 int point_threshold = 20;
 long pointValue_1_threshold = 325;
@@ -21,7 +22,7 @@ long pointValue_3_threshold = 620;
 long pointValue_4_threshold = 690;
 long pointValue_5_threshold = 830;
 
-  //Point assignments
+//Point assignments
 int pointValue_1 = 20;
 int pointValue_2 = 20;
 int pointValue_3 = 20;
@@ -30,6 +31,7 @@ int pointValue_5 = 20;
 
 int detectionCount = 0;
 
+// System State switches
 bool impulseDetected = false;
 bool detectedHand = false;
 bool finalHole = false;
@@ -46,10 +48,14 @@ Servo transitionHole_servo;
 int myFunction(int, int);
 
 void setup() {
-  // put your setup code here, to run once:
+  // Servo set up and initialization
   transitionHole_servo.attach(servoPin);
+  transitionHole_servo.write(transitionHole_closed);
+
+  // Arduino PIN setup
   pinMode(8, OUTPUT);
 
+  // Serial Monitor set up
   Serial.begin(9600);
 }
 
@@ -57,10 +63,16 @@ void loop() {
   
   // Plinko and upper step system are on only until detection count is at 2
   if (detectionCount >= 2) {
+    // if the detection count is met, then turn off plinko and move to next section
     detectedHand = true;
   }else{
+    // read sensors continuously until a hit on contact sensors is detected
     pointSensor_15_value = analogRead(pointValue_15_sensorPin);
     pointSensor_610_value = analogRead(pointValue_610_sensorPin);
+
+    impulseDetecton(pointSensor_15_value);
+    impulseDetecton(pointSensor_610_value);
+
     
   }
 
@@ -69,16 +81,17 @@ void loop() {
     // When a hand is detected, open transition hole and then set timer for 30 sec before closing
     transitionHole_servo.write(transitionHole_open);
     detectionCount = 0;
+    detectedHand = false;
   }
 
-  if (detectedHand_time = 30) {
+  if (detectedHand_time >= 30) {
     // After 30 seconds has passed, close servo and end detectedHand state
     transitionHole_servo.write(transitionHole_closed);
     detectedHand = false;
   }
   // Lower Step
   if (finalHole == true) {
-
+    // restart system
   }
   // End
   
@@ -95,7 +108,7 @@ void loop() {
   
 }
 
-// put function definitions here:
+// Functions
 
 void impulseDetecton(int readValue, int threshold){
   int max = 0;
@@ -107,6 +120,7 @@ void impulseDetecton(int readValue, int threshold){
       max = readValue;
       detectImpulse = true;
     }else{
+      // if the detection threshold is met again, then stop running and calculate points
       if readValue < (threshold + 5){
         calculatePoints(max);
         detectImpulse = false;
@@ -129,10 +143,6 @@ int calculatePoints(int impulsePeak){
     playerScore &plus;= pointValue_5;
   }
   return(playerScore);
-
-}
-
-long countScore(int ){
 
 }
 
