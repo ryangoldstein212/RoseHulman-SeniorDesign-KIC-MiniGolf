@@ -44,9 +44,6 @@ int playerScore = 0;
 // Transition hole servo object
 Servo transitionHole_servo;
 
-// put function declarations here:
-int myFunction(int, int);
-
 void setup() {
   // Servo set up and initialization
   transitionHole_servo.attach(servoPin);
@@ -66,17 +63,15 @@ void loop() {
     // if the detection count is met, then turn off plinko and move to next section
     detectedHand = true;
   }else{
-    // read sensors continuously until a hit on contact sensors is detected
+    // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
     pointSensor_15_value = analogRead(pointValue_15_sensorPin);
     pointSensor_610_value = analogRead(pointValue_610_sensorPin);
 
     impulseDetecton(pointSensor_15_value);
     impulseDetecton(pointSensor_610_value);
-
-    
   }
 
-
+  // Move servo to drop ball to lower level
   if (detectedHand = true) {
     // When a hand is detected, open transition hole and then set timer for 30 sec before closing
     transitionHole_servo.write(transitionHole_open);
@@ -84,14 +79,16 @@ void loop() {
     detectedHand = false;
   }
 
+  // return servo to initial position
   if (detectedHand_time >= 30) {
     // After 30 seconds has passed, close servo and end detectedHand state
     transitionHole_servo.write(transitionHole_closed);
     detectedHand = false;
   }
-  // Lower Step
+  // Lower Step an reset system
   if (finalHole == true) {
     // restart system
+    
   }
   // End
   
