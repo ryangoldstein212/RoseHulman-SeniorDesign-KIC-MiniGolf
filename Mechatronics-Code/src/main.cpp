@@ -5,9 +5,13 @@
 #define servoPin 9
 
 // Analog Pin definitions
-#define transitionHole_sensorPin 0
-#define pointValue_15_sensorPin 1 // analog port for sensors 1-5
-#define pointValue_610_sensorPin 2 // analog port for sensors 6-10
+#define transitionHole_sensorPin 0 // analog port for transition hole light sensor
+#define finalHold_sensorPin 1 // analog port for final hole light sensor
+#define pointValue_15_sensorPin 2 // analog port for plinko touch sensors 1-5
+#define pointValue_610_sensorPin 3 // analog port for plinko touch sensors 6-10
+#define exitHole_left_sensorPin 4 // analog port for plinko left ball exit 
+#define exitHole_middle_sensorPin 5 //analog port for plinko middle ball exit
+#define exitHole_right_sensorPin 6 // analog port for plinko right ball exit
 
 // Servo positions
 int transitionHole_closed = 90;
@@ -39,7 +43,13 @@ bool finalHole = false;
 // counter and timer setting
 int handDetection_count = 0;
 int playerScore = 0;
+long startTime = 0;
+long timer = 0;
 
+// ISR flags
+volatile int mainEventflag = 0;
+#define detectHand_flag 0x01 // hand detection event flag
+#define finalHole_flag 0x02 // final hole event flag
 
 // Transition hole servo object
 Servo transitionHole_servo;
@@ -88,7 +98,7 @@ void loop() {
   // Lower Step an reset system
   if (finalHole == true) {
     // restart system
-    
+
   }
   // End
   
@@ -145,6 +155,8 @@ int calculatePoints(int impulsePeak){
 
 void detectedHandISR(){
   // when light beam is broken, incriment detection count
+  mainEventflag |= detectedHandISR;
+  detectedHand = true;
 }
 
 void finalHoleISR(){
