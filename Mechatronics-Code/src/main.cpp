@@ -5,15 +5,15 @@
 #define servoPin 9
 
 // Analog Pin definitions
-#define transitionHole_sensorPin 0 // analog port for transition hole light sensor
-#define finalHold_sensorPin 1 // analog port for final hole light sensor
-#define pointValue_15_sensorPin 2 // analog port for plinko touch sensors 1-5
-#define pointValue_610_sensorPin 3 // analog port for plinko touch sensors 6-10
-#define exitHole_left_sensorPin 4 // analog port for plinko left ball exit 
-#define exitHole_middle_sensorPin 5 //analog port for plinko middle ball exit
-#define exitHole_right_sensorPin 6 // analog port for plinko right ball exit
+#define pointValue_15_sensorPin 0 // analog port for plinko touch sensors 1-5
+#define pointValue_610_sensorPin 1 // analog port for plinko touch sensors 6-10
+#define exitHole_left_sensorPin 2 // analog port for plinko left ball exit 
+#define exitHole_middle_sensorPin 3 //analog port for plinko middle ball exit
+#define exitHole_right_sensorPin 4 // analog port for plinko right ball exit
+#define transitionHole_sensorPin 5 // analog port for transition hole light sensor
+#define finalHold_sensorPin 6 // analog port for final hole light sensor
 
-// Servo positions
+// Servo positions DOUBLE CHECK!!!!!!!!!!!
 int transitionHole_closed = 90;
 int transitionHole_open = 150;
 
@@ -134,7 +134,6 @@ void impulseDetecton(int readValue, int threshold){
       }
     }
   }
-
 }
 
 int calculatePoints(int impulsePeak){
@@ -150,7 +149,6 @@ int calculatePoints(int impulsePeak){
     playerScore &plus;= pointValue_5;
   }
   return(playerScore);
-
 }
 
 void detectedHandISR(){
@@ -160,5 +158,5 @@ void detectedHandISR(){
 }
 
 void finalHoleISR(){
-  // 
+  // wheen light beam is broken, reset game
 }
