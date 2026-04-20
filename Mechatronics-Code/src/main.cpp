@@ -18,7 +18,7 @@ int transitionHole_closed = 90;
 int transitionHole_open = 150;
 
 //Plinko detection thresholds
-int lightSensor_threshold = 50;
+int lightSensor_threshold = 50; // for exit hole detection
 int point_threshold = 20;
 long pointValue_1_threshold = 325;
 long pointValue_2_threshold = 415;
@@ -32,7 +32,11 @@ int pointValue_2 = 20;
 int pointValue_3 = 20;
 int pointValue_4 = 20;
 int pointValue_5 = 20;
+int exitHole_left_pointValue = 20;
+int exitHole_middle_pointValue = 20;
+int exitHole_right_pointValue = 20;
 
+// Max and 
 int detectionCount = 0;
 
 // System State switches
@@ -76,9 +80,18 @@ void loop() {
     // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
     pointSensor_15_value = analogRead(pointValue_15_sensorPin);
     pointSensor_610_value = analogRead(pointValue_610_sensorPin);
-
+    exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
+    exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
+    exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
+    
+    // Impact sensor impulse detection
+    long impulse_max;
     impulseDetecton(pointSensor_15_value);
     impulseDetecton(pointSensor_610_value);
+
+    // Exit hole light sensor impulse detection
+
+    
   }
 
   // Move servo to drop ball to lower level
@@ -95,7 +108,7 @@ void loop() {
     transitionHole_servo.write(transitionHole_closed);
     detectedHand = false;
   }
-  // Lower Step an reset system
+  // Lower Step and reset system
   if (finalHole == true) {
     // restart system
 
@@ -117,8 +130,14 @@ void loop() {
 
 // Functions
 
-void impulseDetecton(int readValue, int threshold){
-  int max = 0;
+void exitHole_detection(int exitHole_sensorValue){
+  //theshold detection for falling analog signal
+  if (exitHole_sensorValue < detectionThreshold){
+    exitHole_pointAssignment(exitHole_sensorValue);
+  }
+}
+
+void impulseDetecton(int readValue, int threshold, int max){
   bool detectImpulse = false
   //checks if readValue reaches the impulse detection threshold
   if readValue > threshold{
@@ -160,3 +179,4 @@ void detectedHandISR(){
 void finalHoleISR(){
   // wheen light beam is broken, reset game
 }
+
