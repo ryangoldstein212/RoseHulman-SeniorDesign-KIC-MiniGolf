@@ -36,13 +36,19 @@ int exitHole_left_pointValue = 20;
 int exitHole_middle_pointValue = 20;
 int exitHole_right_pointValue = 20;
 
-// Max and 
-int detectionCount = 0;
+// Impulse Detection Globals
+bool detectImpulse_15 = false
+bool detectImpuse_610 = false;
+int maxImpulse_15 = 0;
+int maxImpulse_610 = 0;
 
 // System State switches
-bool impulseDetected = false;
-bool detectedHand = false;
-bool finalHole = false;
+bool state_plinko;
+bool state_upperStep;
+bool state_reveal;
+bool state_lowerStep;
+bool state_reset_system;
+bool state_reset_transiton;
 
 // counter and timer setting
 int handDetection_count = 0;
@@ -55,8 +61,9 @@ volatile int mainEventflag = 0;
 #define detectHand_flag 0x01 // hand detection event flag
 #define finalHole_flag 0x02 // final hole event flag
 
-// Transition hole servo object
-Servo transitionHole_servo;
+// Transition hole globals
+Servo transitionHole_servo; // servo control object
+int detectionCount = 0;
 
 void setup() {
   // Servo set up and initialization
@@ -71,12 +78,9 @@ void setup() {
 }
 
 void loop() {
-  
-  // Plinko and upper step system are on only until detection count is at 2
-  if (detectionCount >= 2) {
-    // if the detection count is met, then turn off plinko and move to next section
-    detectedHand = true;
-  }else{
+
+  // Plinko Section
+  if (state_plinko == true){
     // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
     pointSensor_15_value = analogRead(pointValue_15_sensorPin);
     pointSensor_610_value = analogRead(pointValue_610_sensorPin);
@@ -85,15 +89,44 @@ void loop() {
     exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
     
     // Impact sensor impulse detection
-    long impulse_max;
-    impulseDetecton(pointSensor_15_value);
-    impulseDetecton(pointSensor_610_value);
+    impulseDetecton(pointSensor_15_value, lightSensor_threshold, maxImpulse);
+    impulseDetecton(pointSensor_610_value, lightSensor_threshold, maxImpulse);
 
     // Exit hole light sensor impulse detection
-
-    
+        // After exiting exit holes, enter Upper step state
+        state_plinko = false;
+        state_upperStep = true;
+      //
   }
 
+  // Upper step section
+  if (state_upperStep == true){
+    // watch transition hole light sensors for detections
+    transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
+        // add function for light sensor detection here
+    //thresholding for light sensors and point assignment(?)
+
+    // when the light sensors detect something twice, then go to reveal state
+    if (detectionCount >= 2){
+      state_reveal = true;
+      state_upperStep = false;
+    }
+  }
+
+  // Reveal State
+  if (state_reveal == true){
+
+  }
+
+  // Lower State
+  if (state_lowerStep == true){
+
+  }
+
+  // Servo Reset
+  if (state_reset_transiton == true){
+    
+  }
   // Move servo to drop ball to lower level
   if (detectedHand = true) {
     // When a hand is detected, open transition hole and then set timer for 30 sec before closing
@@ -115,17 +148,6 @@ void loop() {
   }
   // End
   
-  
-  /*
-  //testing
-  transitionHole_servo.write(tranistionHole_open);
-  
-  int transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
-  Serial.print(digitalRead(8));
-  Serial.print("\n       ");
-  */
-  
-  
 }
 
 // Functions
@@ -138,7 +160,6 @@ void exitHole_detection(int exitHole_sensorValue){
 }
 
 void impulseDetecton(int readValue, int threshold, int max){
-  bool detectImpulse = false
   //checks if readValue reaches the impulse detection threshold
   if readValue > threshold{
     // if the impulse detection threshold is met, then continuously update max
