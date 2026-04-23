@@ -2,18 +2,21 @@
 #include <Servo.h>
 
 // Digital Pin definitions
-#define servoPin 9
+#define servo_Pin 2
+#define finalHole_motor_reverse_input 3
+#define finalHole_motor_forward_input 4
+#define finalHole_motor_enable 5
 
 // Analog Pin definitions
-#define pointValue_15_sensorPin 0 // analog port for plinko touch sensors 1-5
-#define pointValue_610_sensorPin 1 // analog port for plinko touch sensors 6-10
-#define exitHole_left_sensorPin 2 // analog port for plinko left ball exit 
+#define transitionHole_sensorPin 6 // analog port for transition hole light sensor
+#define finalHold_sensorPin 5 // analog port for final hole light sensor
+#define exitHole_left_sensorPin 4 // analog port for plinko left ball exit 
 #define exitHole_middle_sensorPin 3 //analog port for plinko middle ball exit
-#define exitHole_right_sensorPin 4 // analog port for plinko right ball exit
-#define transitionHole_sensorPin 5 // analog port for transition hole light sensor
-#define finalHold_sensorPin 6 // analog port for final hole light sensor
+#define exitHole_right_sensorPin 2 // analog port for plinko right ball exit
+#define pointValue_15_sensorPin 1 // analog port for plinko touch sensors 1-5
+#define pointValue_610_sensorPin 0 // analog port for plinko touch sensors 6-10
 
-// Servo positions DOUBLE CHECK!!!!!!!!!!!
+// Servo positions DOUBLE CHECK before uploading w/ sevo attached!!!!!!!!!!!
 int transitionHole_closed = 90;
 int transitionHole_open = 150;
 
@@ -37,7 +40,7 @@ int exitHole_middle_pointValue = 20;
 int exitHole_right_pointValue = 20;
 
 // Impulse Detection Globals
-bool detectImpulse_15 = false
+bool detectImpulse_15 = false;
 bool detectImpuse_610 = false;
 int maxImpulse_15 = 0;
 int maxImpulse_610 = 0;
@@ -67,11 +70,13 @@ int detectionCount = 0;
 
 void setup() {
   // Servo set up and initialization
-  transitionHole_servo.attach(servoPin);
+  transitionHole_servo.attach(servo_Pin);
   transitionHole_servo.write(transitionHole_closed);
 
   // Arduino PIN setup
-  pinMode(8, OUTPUT);
+
+  
+//  state_plinko = true;
 
   // Serial Monitor set up
   Serial.begin(9600);
@@ -82,15 +87,30 @@ void loop() {
   // Plinko Section
   if (state_plinko == true){
     // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
-    pointSensor_15_value = analogRead(pointValue_15_sensorPin);
-    pointSensor_610_value = analogRead(pointValue_610_sensorPin);
-    exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
-    exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
-    exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
-    
+    int pointSensor_15_value = analogRead(pointValue_15_sensorPin);
+    int pointSensor_610_value = analogRead(pointValue_610_sensorPin);
+    int exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
+    int exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
+    int exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
+/*
+    //testing
+    Serial.print(pointSensor_15_value);
+    Serial.print("     ");
+    Serial.print(pointSensor_610_value);
+    Serial.print("     ");
+    Serial.print(exitHole_left_sensorValue);
+    Serial.print("     ");
+    Serial.print(exitHole_middle_sensorValue);
+    Serial.print("     ");
+    Serial.println(exitHole_right_sensorValue);
+  }
+}
+*/
+
     // Impact sensor impulse detection
     impulseDetecton(pointSensor_15_value, lightSensor_threshold, maxImpulse);
     impulseDetecton(pointSensor_610_value, lightSensor_threshold, maxImpulse);
+
 
     // Exit hole light sensor impulse detection
         // After exiting exit holes, enter Upper step state
@@ -115,11 +135,22 @@ void loop() {
 
   // Reveal State
   if (state_reveal == true){
+      // swing transition hole open, start servo reset timer
+      transitionHole_servo.write(transitionHole_open);
 
+      // Lower final hole motor
+
+      // play zelda discover treasure theme
+
+      // exit state to lower step phase
+      state_lowerStep = true;
+      state_reveal = false;
   }
 
   // Lower State
   if (state_lowerStep == true){
+    // Ball detection and final score assignment
+
 
   }
 
