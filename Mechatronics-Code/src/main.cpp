@@ -17,17 +17,21 @@
 #define pointValue_610_sensorPin 0 // analog port for plinko touch sensors 6-10
 
 // Servo positions DOUBLE CHECK before uploading w/ sevo attached!!!!!!!!!!!
-int transitionHole_closed = 90;
-int transitionHole_open = 150;
+int transitionHole_closed = 10;
+int transitionHole_open = 65;
 
 //Plinko detection thresholds
-int lightSensor_threshold = 50; // for exit hole detection
 int point_threshold = 20;
-long pointValue_1_threshold = 325;
-long pointValue_2_threshold = 415;
-long pointValue_3_threshold = 620;
-long pointValue_4_threshold = 690;
-long pointValue_5_threshold = 830;
+long pointValue_1_threshold = 1000;
+long pointValue_2_threshold = 830;
+long pointValue_3_threshold = 740;
+long pointValue_4_threshold = 490;
+long pointValue_5_threshold = 390;
+
+int lightSensor_threshold = 20;
+int exitHole_left_threshold = 5;
+int exitHole_middle_threshold = 50;
+int exitHole_right_threshold = 45;
 
 //Point assignments
 int pointValue_1 = 20;
@@ -75,8 +79,8 @@ void setup() {
 
   // Arduino PIN setup
 
-  
-//  state_plinko = true;
+
+  state_plinko = true;
 
   // Serial Monitor set up
   Serial.begin(9600);
@@ -87,13 +91,25 @@ void loop() {
   // Plinko Section
   if (state_plinko == true){
     // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
-    int pointSensor_15_value = analogRead(pointValue_15_sensorPin);
-    int pointSensor_610_value = analogRead(pointValue_610_sensorPin);
-    int exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
-    int exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
-    int exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
-/*
-    //testing
+    long pointSensor_15_value = analogRead(pointValue_15_sensorPin);
+    long pointSensor_610_value = analogRead(pointValue_610_sensorPin);
+    long exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
+    long exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
+    long exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
+
+
+    // Sensor testing w/out serial monitor
+    long impulsePeak = exitHole_left_sensorValue;
+    if ((impulsePeak > (exitHole_left_threshold - lightSensor_threshold)) && (impulsePeak < (exitHole_left_threshold + lightSensor_threshold))){
+      transitionHole_servo.write(transitionHole_open);
+      delay(1000);
+      transitionHole_servo.write(transitionHole_closed);
+    }
+    
+  }
+}
+    /*
+    // Sensor testing with serial monitor
     Serial.print(pointSensor_15_value);
     Serial.print("     ");
     Serial.print(pointSensor_610_value);
@@ -106,7 +122,7 @@ void loop() {
   }
 }
 */
-
+/*
     // Impact sensor impulse detection
     impulseDetecton(pointSensor_15_value, lightSensor_threshold, maxImpulse);
     impulseDetecton(pointSensor_610_value, lightSensor_threshold, maxImpulse);
@@ -232,3 +248,4 @@ void finalHoleISR(){
   // wheen light beam is broken, reset game
 }
 
+*/
