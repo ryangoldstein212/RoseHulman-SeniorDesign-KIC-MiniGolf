@@ -53,12 +53,12 @@ int transitionHole_open = 65;
 bool detectedHand;
 
 // System State switches
-bool state_plinko;
-bool state_upperStep;
-bool state_reveal;
-bool state_lowerStep;
-bool state_reset_system;
-bool state_reset_transiton;
+bool state_plinko = false;
+bool state_upperStep = false;
+bool state_reveal = false;
+bool state_lowerStep = false;
+bool state_reset_system = false;
+bool state_reset_transiton = false;
 
 // counter and timer setting
 int handDetection_count = 0;
@@ -75,6 +75,8 @@ long transitionHole_threshold = 5;
 void sensorTesting(long impulse, long target, long threshold);
 long impulseDetection(long readValue, long threshold, long max);
 void impactSensor_calculatePoints(long impulsePeak);
+void exitHole_pointAssignment();
+void exitHole_detection(long exitHole_sensorValue);
 
 
 void setup() {
@@ -184,10 +186,10 @@ void loop() {
 
 // Functions
 
-void exitHole_detection(int exitHole_sensorValue){
+void exitHole_detection(long exitHole_sensorValue){
   //theshold detection for falling analog signal
-  if (exitHole_sensorValue < detectionThreshold){
-    exitHole_pointAssignment(exitHole_sensorValue);
+  if (exitHole_sensorValue < lightSensor_tolerance){
+    exitHole_pointAssignment();
   }
 }
 
@@ -227,6 +229,10 @@ void impactSensor_calculatePoints(long impulsePeak){
   else if (impulsePeak >= pointValue_5_threshold){     
     playerScore += pointValue_5;
   } 
+}
+
+void exitHole_pointAssignment(){
+
 }
 
 void sensorTesting(long impulse, long target, long tolerance){
