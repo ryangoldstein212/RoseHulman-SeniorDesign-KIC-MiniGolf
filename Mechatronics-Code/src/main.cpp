@@ -16,22 +16,25 @@
 #define pointValue_15_sensorPin 1 // analog port for plinko touch sensors 1-5
 #define pointValue_610_sensorPin 0 // analog port for plinko touch sensors 6-10
 
-// Servo positions DOUBLE CHECK before uploading w/ sevo attached!!!!!!!!!!!
+// Servo Stuff 
 int transitionHole_closed = 10;
 int transitionHole_open = 65;
 
 //Plinko detection thresholds
-int point_threshold = 20;
+int point_tolerance = 20;
 long pointValue_1_threshold = 1000;
 long pointValue_2_threshold = 830;
 long pointValue_3_threshold = 740;
 long pointValue_4_threshold = 490;
 long pointValue_5_threshold = 390;
 
-int lightSensor_threshold = 20;
+int lightSensor_tolerance = 20;
 int exitHole_left_threshold = 5;
-int exitHole_middle_threshold = 50;
+int exitHole_middle_threshold = 70;
 int exitHole_right_threshold = 45;
+
+// Plinko detection flag
+
 
 //Point assignments
 int pointValue_1 = 20;
@@ -71,6 +74,10 @@ volatile int mainEventflag = 0;
 // Transition hole globals
 Servo transitionHole_servo; // servo control object
 int detectionCount = 0;
+long transitionHole_threshold = 5;
+
+// Function Declarations
+void sensorTesting(long impulse, long target, long threshold);
 
 void setup() {
   // Servo set up and initialization
@@ -80,14 +87,12 @@ void setup() {
   // Arduino PIN setup
 
 
-  state_plinko = true;
-
+  state_upperStep = true;
   // Serial Monitor set up
   Serial.begin(9600);
 }
 
 void loop() {
-
   // Plinko Section
   if (state_plinko == true){
     // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
@@ -96,36 +101,10 @@ void loop() {
     long exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
     long exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
     long exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
-
-
-    // Sensor testing w/out serial monitor
-    long impulsePeak = exitHole_left_sensorValue;
-    if ((impulsePeak > (exitHole_left_threshold - lightSensor_threshold)) && (impulsePeak < (exitHole_left_threshold + lightSensor_threshold))){
-      transitionHole_servo.write(transitionHole_open);
-      delay(1000);
-      transitionHole_servo.write(transitionHole_closed);
-    }
     
-  }
-}
-    /*
-    // Sensor testing with serial monitor
-    Serial.print(pointSensor_15_value);
-    Serial.print("     ");
-    Serial.print(pointSensor_610_value);
-    Serial.print("     ");
-    Serial.print(exitHole_left_sensorValue);
-    Serial.print("     ");
-    Serial.print(exitHole_middle_sensorValue);
-    Serial.print("     ");
-    Serial.println(exitHole_right_sensorValue);
-  }
-}
-*/
-/*
     // Impact sensor impulse detection
-    impulseDetecton(pointSensor_15_value, lightSensor_threshold, maxImpulse);
-    impulseDetecton(pointSensor_610_value, lightSensor_threshold, maxImpulse);
+    //impulseDetecton(pointSensor_15_value, lightSensor_threshold, maxImpulse);
+    //impulseDetecton(pointSensor_610_value, lightSensor_threshold, maxImpulse);
 
 
     // Exit hole light sensor impulse detection
@@ -138,9 +117,16 @@ void loop() {
   // Upper step section
   if (state_upperStep == true){
     // watch transition hole light sensors for detections
-    transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
+    long transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
         // add function for light sensor detection here
     //thresholding for light sensors and point assignment(?)
+
+    // Sensor testing w/out serial monitor
+    long impulsePeak = transitionHole_sensorValue;
+    long tolerance = lightSensor_tolerance;
+    long threshold = transitionHole_threshold;
+    //sensorTesting(impulsePeak, tolerance, threshold);
+    Serial.println(transitionHole_sensorValue);
 
     // when the light sensors detect something twice, then go to reveal state
     if (detectionCount >= 2){
@@ -174,7 +160,9 @@ void loop() {
   if (state_reset_transiton == true){
     
   }
+}
   // Move servo to drop ball to lower level
+  /*
   if (detectedHand = true) {
     // When a hand is detected, open transition hole and then set timer for 30 sec before closing
     transitionHole_servo.write(transitionHole_open);
@@ -249,3 +237,11 @@ void finalHoleISR(){
 }
 
 */
+
+void sensorTesting(long impulse, long target, long tolerance){
+  if ((impulse > (target - tolerance)) && (impulse < (target + tolerance))){
+        transitionHole_servo.write(transitionHole_open);
+        delay(1000);
+        transitionHole_servo.write(transitionHole_closed);
+  }
+}
