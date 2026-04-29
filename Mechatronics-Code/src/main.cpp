@@ -16,25 +16,25 @@
 #define pointValue_15_sensorPin 1 // analog port for plinko touch sensors 1-5
 #define pointValue_610_sensorPin 0 // analog port for plinko touch sensors 6-10
 
-// Servo Stuff 
-int transitionHole_closed = 10;
-int transitionHole_open = 65;
 
 //Plinko detection thresholds
-int point_tolerance = 20;
+int point_tolerance = 25;
 long pointValue_1_threshold = 1000;
 long pointValue_2_threshold = 830;
 long pointValue_3_threshold = 740;
 long pointValue_4_threshold = 490;
 long pointValue_5_threshold = 390;
+int impactSensor_threshold = 100; // impact sensor values must be above this value for detection to be possible
 
-int lightSensor_tolerance = 20;
+int exitHole_sensor_tolerance = 20;
 int exitHole_left_threshold = 5;
 int exitHole_middle_threshold = 70;
 int exitHole_right_threshold = 45;
+int lightSensor_tolerance = 150; // light sensor values must be below this value for detection to be possible
 
-// Plinko detection flag
-
+// Impulse Detection Globals
+int maxImpulse_15 = 0;
+int maxImpulse_610 = 0;
 
 //Point assignments
 int pointValue_1 = 20;
@@ -46,11 +46,11 @@ int exitHole_left_pointValue = 20;
 int exitHole_middle_pointValue = 20;
 int exitHole_right_pointValue = 20;
 
-// Impulse Detection Globals
-bool detectImpulse_15 = false;
-bool detectImpuse_610 = false;
-int maxImpulse_15 = 0;
-int maxImpulse_610 = 0;
+
+// Transition Hole Globals
+int transitionHole_closed = 10;
+int transitionHole_open = 65;
+bool detectedHand;
 
 // System State switches
 bool state_plinko;
@@ -64,12 +64,7 @@ bool state_reset_transiton;
 int handDetection_count = 0;
 int playerScore = 0;
 long startTime = 0;
-long timer = 0;
-
-// ISR flags
-volatile int mainEventflag = 0;
-#define detectHand_flag 0x01 // hand detection event flag
-#define finalHole_flag 0x02 // final hole event flag
+long detectedHand_time = 0;
 
 // Transition hole globals
 Servo transitionHole_servo; // servo control object
@@ -78,19 +73,20 @@ long transitionHole_threshold = 5;
 
 // Function Declarations
 void sensorTesting(long impulse, long target, long threshold);
+long impulseDetection(long readValue, long threshold, long max);
+void impactSensor_calculatePoints(long impulsePeak);
+
 
 void setup() {
   // Servo set up and initialization
   transitionHole_servo.attach(servo_Pin);
   transitionHole_servo.write(transitionHole_closed);
 
-  // Arduino PIN setup
-
-
   state_upperStep = true;
   // Serial Monitor set up
   Serial.begin(9600);
 }
+
 
 void loop() {
   // Plinko Section
@@ -103,9 +99,8 @@ void loop() {
     long exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
     
     // Impact sensor impulse detection
-    //impulseDetecton(pointSensor_15_value, lightSensor_threshold, maxImpulse);
-    //impulseDetecton(pointSensor_610_value, lightSensor_threshold, maxImpulse);
-
+    maxImpulse_15 = impulseDetection(pointSensor_15_value, impactSensor_threshold, maxImpulse_15);
+    maxImpulse_610 = impulseDetection(pointSensor_610_value, impactSensor_threshold, maxImpulse_610);
 
     // Exit hole light sensor impulse detection
         // After exiting exit holes, enter Upper step state
@@ -125,7 +120,7 @@ void loop() {
     long impulsePeak = transitionHole_sensorValue;
     long tolerance = lightSensor_tolerance;
     long threshold = transitionHole_threshold;
-    //sensorTesting(impulsePeak, tolerance, threshold);
+        //sensorTesting(impulsePeak, tolerance, threshold);
     Serial.println(transitionHole_sensorValue);
 
     // when the light sensors detect something twice, then go to reveal state
@@ -139,6 +134,8 @@ void loop() {
   if (state_reveal == true){
       // swing transition hole open, start servo reset timer
       transitionHole_servo.write(transitionHole_open);
+      long currentTime = millis();
+      detectedHand_time = (currentTime - startTime)/1000;
 
       // Lower final hole motor
 
@@ -160,10 +157,10 @@ void loop() {
   if (state_reset_transiton == true){
     
   }
-}
+
   // Move servo to drop ball to lower level
-  /*
-  if (detectedHand = true) {
+  
+  if (detectedHand == true) {
     // When a hand is detected, open transition hole and then set timer for 30 sec before closing
     transitionHole_servo.write(transitionHole_open);
     detectionCount = 0;
@@ -177,7 +174,7 @@ void loop() {
     detectedHand = false;
   }
   // Lower Step and reset system
-  if (finalHole == true) {
+  if (state_reset_system == true) {
     // restart system
 
   }
@@ -194,49 +191,43 @@ void exitHole_detection(int exitHole_sensorValue){
   }
 }
 
-void impulseDetecton(int readValue, int threshold, int max){
+long impulseDetection(long readValue, long threshold, long max){
   //checks if readValue reaches the impulse detection threshold
-  if readValue > threshold{
-    // if the impulse detection threshold is met, then continuously update max
-    if readValue > max{
-      max = readValue;
-      detectImpulse = true;
-    }else{
-      // if the detection threshold is met again, then stop running and calculate points
-      if readValue < (threshold + 5){
-        calculatePoints(max);
-        detectImpulse = false;
-      }
+  if (readValue > threshold){
+    // if the impulse detection threshold is met, then continuously update max if max is less than current read value
+    if (readValue > max){
+      return readValue; // updates max to readValue 
+    }
+    else{
+      return max;
     }
   }
-}
-
-int calculatePoints(int impulsePeak){
-  if (impulsePeak > (pointValue_1_threshold - point_threshold)) && (impulsePeak < (pointValue_1_threshold + point_threshold)){
-    playerScore &plus;= pointValue_1;
-  }elseif (impulsePeak > (pointValue_2_threshold - point_threshold)) && (impulsePeak < (pointValue_2_threshold + point_threshold)){
-    playerScore &plus;= pointValue_2;
-  }elseif (impulsePeak > (pointValue_3_threshold - point_threshold)) && (impulsePeak < (pointValue_3_threshold + point_threshold)){
-    playerScore &plus;= pointValue_3;
-  }elseif (impulsePeak > (pointValue_4_threshold - point_threshold)) && (impulsePeak < (pointValue_4_threshold + point_threshold)){
-    playerScore &plus;= pointValue_4;
-  }elseif (impulsePeak > (pointValue_5_threshold - point_threshold)) && (impulsePeak < (pointValue_5_threshold + point_threshold)){
-    playerScore &plus;= pointValue_5;
+  // if the detection threshold is met again, then stop running and calculate points
+  else if (readValue < threshold +5){
+    impactSensor_calculatePoints(max);
+    return 0;
   }
-  return(playerScore);
 }
 
-void detectedHandISR(){
-  // when light beam is broken, incriment detection count
-  mainEventflag |= detectedHandISR;
-  detectedHand = true;
-}
 
-void finalHoleISR(){
-  // wheen light beam is broken, reset game
+void impactSensor_calculatePoints(long impulsePeak){
+  // Check from highest threshold to lowest. 
+  if (impulsePeak >= pointValue_1_threshold){          
+    playerScore += pointValue_1;
+  } 
+  else if (impulsePeak >= pointValue_2_threshold){     
+    playerScore += pointValue_2;
+  } 
+  else if (impulsePeak >= pointValue_3_threshold){     
+    playerScore += pointValue_3;
+  } 
+  else if (impulsePeak >= pointValue_4_threshold){     
+    playerScore += pointValue_4;
+  } 
+  else if (impulsePeak >= pointValue_5_threshold){     
+    playerScore += pointValue_5;
+  } 
 }
-
-*/
 
 void sensorTesting(long impulse, long target, long tolerance){
   if ((impulse > (target - tolerance)) && (impulse < (target + tolerance))){
