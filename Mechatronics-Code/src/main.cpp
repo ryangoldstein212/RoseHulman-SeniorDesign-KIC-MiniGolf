@@ -17,7 +17,7 @@
 #define pointValue_610_sensorPin 0 // analog port for plinko touch sensors 6-10
 
 
-//Plinko detection thresholds
+//IR detection thresholds
 int point_tolerance = 25;
 long pointValue_1_threshold = 830;
 long pointValue_2_threshold = 680;
@@ -31,6 +31,8 @@ int exitHole_left_threshold = 5;
 int exitHole_middle_threshold = 70;
 int exitHole_right_threshold = 45;
 int lightSensor_tolerance = 150; // light sensor values must be below this value for detection to be possible
+
+int transitionHole_sensor_threshold = 
 
 // Impulse Detection Globals
 int maxImpulse_15 = 0;
