@@ -3,13 +3,13 @@
 
 // Digital Pin definitions
 #define servo_Pin 2
-#define finalHole_motor_reverse_input 3
-#define finalHole_motor_forward_input 4
+#define finalHole_motor_up_input 3
+#define finalHole_motor_down_input 4
 #define finalHole_motor_enable 5
 
 // Analog Pin definitions
-#define transitionHole_sensorPin 6 // analog port for transition hole light sensor
-#define finalHold_sensorPin 5 // analog port for final hole light sensor
+#define transitionHole_sensorPin 5 // analog port for transition hole light sensor
+#define finalHold_sensorPin 6 // analog port for final hole light sensor
 #define exitHole_left_sensorPin 4 // analog port for plinko left ball exit 
 #define exitHole_middle_sensorPin 3 //analog port for plinko middle ball exit
 #define exitHole_right_sensorPin 2 // analog port for plinko right ball exit
@@ -84,6 +84,11 @@ void setup() {
   transitionHole_servo.attach(servo_Pin);
   transitionHole_servo.write(transitionHole_closed);
 
+  // Motor Set Up
+  pinMode(finalHole_motor_down_input, 1);
+  pinMode(finalHole_motor_up_input, 1);
+  pinMode(finalHole_motor_enable, 1);
+
   state_upperStep = true;
   // Serial Monitor set up
   Serial.begin(9600);
@@ -114,14 +119,16 @@ void loop() {
   // Upper step section
   if (state_upperStep == true){
     // watch transition hole light sensors for detections
-    long transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
+    int transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
         // add function for light sensor detection here
     //thresholding for light sensors and point assignment(?)
 
     // Sensor testing w/out serial monitor
+    /*
     long impulsePeak = transitionHole_sensorValue;
     long tolerance = lightSensor_tolerance;
     long threshold = transitionHole_threshold;
+    */
         //sensorTesting(impulsePeak, tolerance, threshold);
     Serial.println(transitionHole_sensorValue);
 
@@ -151,6 +158,10 @@ void loop() {
   // Lower State
   if (state_lowerStep == true){
     // Ball detection and final score assignment
+    digitalWrite(finalHole_motor_enable, 1);
+    digitalWrite(finalHole_motor_down_input, 0);
+    digitalWrite(finalHole_motor_up_input, 1);
+
 
 
   }
