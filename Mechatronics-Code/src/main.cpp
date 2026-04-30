@@ -114,7 +114,7 @@ void loop() {
   // Upper step section
   if (state_upperStep == true){
     // watch transition hole light sensors for detections
-    long transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
+    int transitionHole_sensorValue = analogRead(exitHole_left_sensorPin);
         // add function for light sensor detection here
     //thresholding for light sensors and point assignment(?)
 
