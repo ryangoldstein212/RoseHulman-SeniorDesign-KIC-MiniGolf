@@ -16,43 +16,61 @@
 #define pointValue_15_sensorPin 1 // analog port for plinko touch sensors 1-5
 #define pointValue_610_sensorPin 0 // analog port for plinko touch sensors 6-10
 
+// Plinko Sensor Read Values Initialization
+uint16_t pointSensor_15_value;
+uint16_t pointSensor_610_value;
+uint16_t exitHole_left_sensorValue;
+uint16_t exitHole_middle_sensorValue;
+uint16_t exitHole_right_sensorValue;
 
-//IR detection thresholds
-int point_tolerance = 25;
-long pointValue_1_threshold = 830;
-long pointValue_2_threshold = 680;
-long pointValue_3_threshold = 600;
-long pointValue_4_threshold = 400;
-long pointValue_5_threshold = 310;
-int impactSensor_threshold = 20; // impact sensor values must be above this value for detection to be possible
+//Plinko IR detection 
+uint8_t point_tolerance = 25;
+uint16_t pointValue_1_threshold = 830;
+uint16_t pointValue_2_threshold = 680;
+uint16_t pointValue_3_threshold = 600;
+uint16_t pointValue_4_threshold = 400;
+uint16_t pointValue_5_threshold = 310;
+uint8_t impactSensor_threshold = 20; // impact sensor values must be above this value for detection to be possible
 
-int exitHole_sensor_tolerance = 20;
-int exitHole_left_threshold = 5;
-int exitHole_middle_threshold = 70;
-int exitHole_right_threshold = 45;
-int lightSensor_tolerance = 150; // light sensor values must be below this value for detection to be possible
+uint8_t exitHole_sensor_tolerance = 20;
+uint8_t exitHole_left_threshold = 5;
+uint8_t exitHole_middle_threshold = 70;
+uint8_t exitHole_right_threshold = 45;
+uint8_t lightSensor_tolerance = 150; // light sensor values must be below this value for detection to be possible
 
-int transitionHole_sensor_threshold = 
+// Transition Hole Read Value initialization
+uint16_t transitionHole_sensorValue;
+
+// Transition Hole IR detection
+uint16_t transitionHole_sensor_threshold = 960;
+
+// Final Hole Read Value initialization
+uint16_t finalHole_sensorValue;
+
+// Final Hole IR detection
+uint16_t finalHole_sensor_threshold = 960;
 
 // Impulse Detection Globals
-int maxImpulse_15 = 0;
-int maxImpulse_610 = 0;
+uint16_t maxImpulse_15 = 0;
+uint16_t maxImpulse_610 = 0;
 
 //Point assignments
-int pointValue_1 = 1;
-int pointValue_2 = 2;
-int pointValue_3 = 3;
-int pointValue_4 = 4;
-int pointValue_5 = 5;
-int exitHole_left_pointValue = 20;
-int exitHole_middle_pointValue = 20;
-int exitHole_right_pointValue = 20;
+uint16_t pointValue_1 = 1;
+uint16_t pointValue_2 = 2;
+uint16_t pointValue_3 = 3;
+uint16_t pointValue_4 = 4;
+uint16_t pointValue_5 = 5;
+uint16_t exitHole_left_pointValue = 20;
+uint16_t exitHole_middle_pointValue = 20;
+uint16_t exitHole_right_pointValue = 20;
 
 
 // Transition Hole Globals
-int transitionHole_closed = 10;
-int transitionHole_open = 65;
-bool detectedHand;
+Servo transitionHole_servo; // servo control object
+uint8_t detectionCount = 0;
+uint8_t transitionHole_closed = 10;
+uint8_t transitionHole_open = 65;
+bool detectedHand = false;
 
 // System State switches
 bool state_plinko = false;
@@ -62,23 +80,20 @@ bool state_lowerStep = false;
 bool state_reset_system = false;
 bool state_reset_transiton = false;
 
-// counter and timer setting
-int handDetection_count = 0;
-int playerScore = 0;
-long startTime = 0;
-long detectedHand_time = 0;
+// counters and timers
+uint16_t playerScore = 0;
+uint16_t startTime = 0;
+uint16_t detectedHand_time = 0;
 
 // Transition hole globals
-Servo transitionHole_servo; // servo control object
-int detectionCount = 0;
-long transitionHole_threshold = 5;
+
 
 // Function Declarations
-void sensorTesting(long impulse, long target, long threshold);
-long impulseDetection(long readValue, long threshold, long max);
-void impactSensor_calculatePoints(long impulsePeak);
+void sensorTesting(uint16_t impulse, uint16_t target, uint16_t threshold);
+uint16_t impulseDetection(uint16_t readValue, uint16_t threshold, uint16_t max);
+void impactSensor_calculatePoints(uint16_t impulsePeak);
 void exitHole_pointAssignment();
-void exitHole_detection(long exitHole_sensorValue);
+void exitHole_detection(uint16_t exitHole_sensorValue);
 
 
 void setup() {
@@ -91,7 +106,7 @@ void setup() {
   pinMode(finalHole_motor_up_input, 1);
   pinMode(finalHole_motor_enable, 1);
 
-  state_upperStep = true;
+  state_plinko = true;
   // Serial Monitor set up
   Serial.begin(9600);
 }
@@ -101,23 +116,25 @@ void loop() {
   // Plinko Section
   if (state_plinko == true){
     // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
-    long pointSensor_15_value = analogRead(pointValue_15_sensorPin);
+    uint16_t pointSensor_15_value = analogRead(pointValue_15_sensorPin);
     uint16_t pointSensor_610_value = analogRead(pointValue_610_sensorPin);
     uint16_t exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
     uint16_t exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
     uint16_t exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
     
     // Impact sensor impulse detection
+    sensorTesting(pointSensor_15_value, pointValue_3_threshold, impactSensor_threshold);
     maxImpulse_15 = impulseDetection(pointSensor_15_value, impactSensor_threshold, maxImpulse_15);
     maxImpulse_610 = impulseDetection(pointSensor_610_value, impactSensor_threshold, maxImpulse_610);
 
     // Exit hole light sensor impulse detection
-    
+    /*
     Serial.print(pointSensor_15_value);
     Serial.print("        ");
     Serial.print(pointSensor_610_value);
     Serial.print("        ");
     Serial.println(playerScore);
+    */
     
         // After exiting exit holes, enter Upper step state
 
@@ -127,7 +144,7 @@ void loop() {
   // Upper step section
   if (state_upperStep == true){
     // watch transition hole light sensors for detections
-    int transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
+    uint16_t transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
         // add function for light sensor detection here
     //thresholding for light sensors and point assignment(?)
 
@@ -151,7 +168,7 @@ void loop() {
   if (state_reveal == true){
       // swing transition hole open, start servo reset timer
       transitionHole_servo.write(transitionHole_open);
-      long currentTime = millis();
+      uint16_t currentTime = millis();
       detectedHand_time = (currentTime - startTime)/1000;
 
       // Lower final hole motor
@@ -203,14 +220,14 @@ void loop() {
 
 // Functions
 
-void exitHole_detection(long exitHole_sensorValue){
+void exitHole_detection(uint16_t exitHole_sensorValue){
   //theshold detection for falling analog signal
   if (exitHole_sensorValue < lightSensor_tolerance){
     exitHole_pointAssignment();
   }
 }
 
-long impulseDetection(long readValue, long threshold, long max){
+uint16_t impulseDetection(uint16_t readValue, uint16_t threshold, uint16_t max){
   //checks if readValue reaches the impulse detection threshold
   if (readValue > threshold){
     // if the impulse detection threshold is met, then continuously update max if max is less than current read value
@@ -229,7 +246,7 @@ long impulseDetection(long readValue, long threshold, long max){
 }
 
 
-void impactSensor_calculatePoints(long impulsePeak){
+void impactSensor_calculatePoints(uint16_t impulsePeak){
   // Check from highest threshold to lowest. 
   if (impulsePeak >= pointValue_1_threshold){          
     playerScore += pointValue_1;
@@ -252,7 +269,7 @@ void exitHole_pointAssignment(){
 
 }
 
-void sensorTesting(long impulse, long target, long tolerance){
+void sensorTesting(uint16_t impulse, uint16_t target, uint16_t tolerance){
   if ((impulse > (target - tolerance)) && (impulse < (target + tolerance))){
         transitionHole_servo.write(transitionHole_open);
         delay(1000);
