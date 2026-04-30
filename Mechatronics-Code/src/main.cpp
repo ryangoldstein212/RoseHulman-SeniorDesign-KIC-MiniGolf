@@ -9,7 +9,7 @@
 
 // Analog Pin definitions
 #define transitionHole_sensorPin 5 // analog port for transition hole light sensor
-#define finalHold_sensorPin 6 // analog port for final hole light sensor
+#define finalHole_sensorPin 6 // analog port for final hole light sensor
 #define exitHole_left_sensorPin 4 // analog port for plinko left ball exit 
 #define exitHole_middle_sensorPin 3 //analog port for plinko middle ball exit
 #define exitHole_right_sensorPin 2 // analog port for plinko right ball exit
@@ -119,11 +119,7 @@ void loop() {
   // Upper step section
   if (state_upperStep == true){
     // watch transition hole light sensors for detections
-<<<<<<< HEAD
-    int transitionHole_sensorValue = analogRead(exitHole_left_sensorPin);
-=======
     int transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
->>>>>>> 5261704b4c4fa7c65bdccfcef9340249f6027e91
         // add function for light sensor detection here
     //thresholding for light sensors and point assignment(?)
 
