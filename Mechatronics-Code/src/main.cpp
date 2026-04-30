@@ -19,12 +19,12 @@
 
 //Plinko detection thresholds
 int point_tolerance = 25;
-long pointValue_1_threshold = 1000;
-long pointValue_2_threshold = 830;
-long pointValue_3_threshold = 740;
-long pointValue_4_threshold = 490;
-long pointValue_5_threshold = 390;
-int impactSensor_threshold = 100; // impact sensor values must be above this value for detection to be possible
+long pointValue_1_threshold = 830;
+long pointValue_2_threshold = 680;
+long pointValue_3_threshold = 600;
+long pointValue_4_threshold = 400;
+long pointValue_5_threshold = 310;
+int impactSensor_threshold = 20; // impact sensor values must be above this value for detection to be possible
 
 int exitHole_sensor_tolerance = 20;
 int exitHole_left_threshold = 5;
@@ -37,11 +37,11 @@ int maxImpulse_15 = 0;
 int maxImpulse_610 = 0;
 
 //Point assignments
-int pointValue_1 = 20;
-int pointValue_2 = 20;
-int pointValue_3 = 20;
-int pointValue_4 = 20;
-int pointValue_5 = 20;
+int pointValue_1 = 1;
+int pointValue_2 = 2;
+int pointValue_3 = 3;
+int pointValue_4 = 4;
+int pointValue_5 = 5;
 int exitHole_left_pointValue = 20;
 int exitHole_middle_pointValue = 20;
 int exitHole_right_pointValue = 20;
@@ -100,19 +100,25 @@ void loop() {
   if (state_plinko == true){
     // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
     long pointSensor_15_value = analogRead(pointValue_15_sensorPin);
-    long pointSensor_610_value = analogRead(pointValue_610_sensorPin);
-    long exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
-    long exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
-    long exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
+    uint16_t pointSensor_610_value = analogRead(pointValue_610_sensorPin);
+    uint16_t exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
+    uint16_t exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
+    uint16_t exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
     
     // Impact sensor impulse detection
     maxImpulse_15 = impulseDetection(pointSensor_15_value, impactSensor_threshold, maxImpulse_15);
     maxImpulse_610 = impulseDetection(pointSensor_610_value, impactSensor_threshold, maxImpulse_610);
 
     // Exit hole light sensor impulse detection
+    
+    Serial.print(pointSensor_15_value);
+    Serial.print("        ");
+    Serial.print(pointSensor_610_value);
+    Serial.print("        ");
+    Serial.println(playerScore);
+    
         // After exiting exit holes, enter Upper step state
-        state_plinko = false;
-        state_upperStep = true;
+
       //
   }
 
@@ -158,9 +164,7 @@ void loop() {
   // Lower State
   if (state_lowerStep == true){
     // Ball detection and final score assignment
-    digitalWrite(finalHole_motor_enable, 1);
-    digitalWrite(finalHole_motor_down_input, 0);
-    digitalWrite(finalHole_motor_up_input, 1);
+
 
 
 
