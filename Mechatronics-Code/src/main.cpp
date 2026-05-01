@@ -32,42 +32,52 @@ uint16_t pointValue_4_threshold = 400;
 uint16_t pointValue_5_threshold = 310;
 uint8_t impactSensor_threshold = 20; // impact sensor values must be above this value for detection to be possible
 
+uint16_t maxImpulse_15 = 0;
+uint16_t maxImpulse_610 = 0;
+
 uint8_t exitHole_sensor_tolerance = 20;
 uint8_t exitHole_left_threshold = 5;
 uint8_t exitHole_middle_threshold = 70;
 uint8_t exitHole_right_threshold = 45;
 uint8_t lightSensor_tolerance = 150; // light sensor values must be below this value for detection to be possible
+bool exitHole_detected = false;
+
+uint16_t exitHole_left_max = 0;
+uint16_t exitHole_middle_max = 0;
+uint16_t exitHole_right_max = 0;
 
 // Transition Hole Read Value initialization
 uint16_t transitionHole_sensorValue;
+uint16_t transitionHole_max = 0;
 
 // Transition Hole IR detection
 uint16_t transitionHole_sensor_threshold = 960;
+uint16_t transitionHole_points = 100;
 
 // Final Hole Read Value initialization
 uint16_t finalHole_sensorValue;
 
 // Final Hole IR detection
 uint16_t finalHole_sensor_threshold = 960;
+uint16_t finalHole_max = 0;
+uint16_t finalHole_points = 300;
 
 // Impulse Detection
-uint16_t maxImpulse_15 = 0;
-uint16_t maxImpulse_610 = 0;
+
 
 //Point assignments
-uint16_t pointValue_1 = 1;
-uint16_t pointValue_2 = 2;
-uint16_t pointValue_3 = 3;
-uint16_t pointValue_4 = 4;
-uint16_t pointValue_5 = 5;
-uint16_t exitHole_left_pointValue = 20;
-uint16_t exitHole_middle_pointValue = 20;
-uint16_t exitHole_right_pointValue = 20;
-
+uint16_t pointValue_1 = 10;
+uint16_t pointValue_2 = 20;
+uint16_t pointValue_3 = 30;
+uint16_t pointValue_4 = 40;
+uint16_t pointValue_5 = 50;
+uint16_t exitHole_left_pointValue = 50;
+uint16_t exitHole_middle_pointValue = 100;
+uint16_t exitHole_right_pointValue = 50;
 
 // Transition Hole Globals
 Servo transitionHole_servo; // servo control object
-uint8_t detectionCount = 0;
+uint8_t handDetection_count = 0;
 uint8_t transitionHole_closed = 10;
 uint8_t transitionHole_open = 65;
 bool detectedHand = false;
@@ -84,15 +94,18 @@ bool state_reset_transiton = false;
 uint16_t playerScore = 0;
 uint16_t startTime = 0;
 uint16_t detectedHand_time = 0;
+uint16_t reset_time; 
+bool startTimer = false;
 
 // Function Declarations
 void sensorTesting(uint16_t impulse, uint16_t target, uint16_t threshold);
 uint16_t impulseDetection(uint16_t readValue, uint16_t threshold, uint16_t max);
 void impactSensor_calculatePoints(uint16_t impulsePeak);
-void exitHole_pointAssignment();
-void exitHole_detection(uint16_t exitHole_sensorValue);
-void transitionHole_detection();
-void finalHole_detection();
+uint16_t infraredSensor_detection(uint16_t sensorValue, uint16_t threshold, uint16_t max, void (*pointsFunction)(uint16_t));
+void exitHole_pointAssignment(uint16_t detectionPeak);
+void transitionHole_function(uint16_t detectionPeak);
+void finalHole_function(uint16_t detectionPeak);
+
 
 
 void setup() {
@@ -122,15 +135,19 @@ void loop() {
     uint16_t exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
     
     // Impact sensor impulse detection
-    sensorTesting(pointSensor_15_value, pointValue_3_threshold, impactSensor_threshold);
     maxImpulse_15 = impulseDetection(pointSensor_15_value, impactSensor_threshold, maxImpulse_15);
     maxImpulse_610 = impulseDetection(pointSensor_610_value, impactSensor_threshold, maxImpulse_610);
 
     // Exit hole light sensor impulse detection
+    exitHole_left_max = infraredSensor_detection(exitHole_left_sensorValue, exitHole_left_threshold, exitHole_left_max, exitHole_pointAssignment);
+    exitHole_middle_max = infraredSensor_detection(exitHole_middle_sensorValue, exitHole_middle_threshold, exitHole_middle_max, exitHole_pointAssignment);
+    exitHole_right_max = infraredSensor_detection(exitHole_right_sensorValue, exitHole_right_threshold, exitHole_right_max, exitHole_pointAssignment);
     
-    
-        // After exiting exit holes, enter Upper step state
-
+    // After exiting exit holes, enter Upper step state
+    if (exitHole_detected == true){
+      state_upperStep = true;
+      state_plinko = false;
+    }
       //
   }
 
@@ -138,20 +155,11 @@ void loop() {
   if (state_upperStep == true){
     // watch transition hole light sensors for detections
     uint16_t transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
-        // add function for light sensor detection here
-    //thresholding for light sensors and point assignment(?)
-
-    // Sensor testing w/out serial monitor
-    /*
-    long impulsePeak = transitionHole_sensorValue;
-    long tolerance = lightSensor_tolerance;
-    long threshold = transitionHole_threshold;
-    */
-        //sensorTesting(impulsePeak, tolerance, threshold);
-    Serial.println(transitionHole_sensorValue);
+    transitionHole_max = infraredSensor_detection(transitionHole_sensorValue, transitionHole_sensor_threshold, transitionHole_max, transitionHole_function);
+    // point assignment(?)
 
     // when the light sensors detect something twice, then go to reveal state
-    if (detectionCount >= 2){
+    if (handDetection_count >= 2){
       state_reveal = true;
       state_upperStep = false;
     }
@@ -162,7 +170,7 @@ void loop() {
       // swing transition hole open, start servo reset timer
       transitionHole_servo.write(transitionHole_open);
       uint16_t currentTime = millis();
-      detectedHand_time = (currentTime - startTime)/1000;
+      reset_time = (currentTime - startTime)/1000;
 
       // Lower final hole motor
 
@@ -176,8 +184,12 @@ void loop() {
   // Lower State
   if (state_lowerStep == true){
     // Ball detection and final score assignment
+    finalHole_max = infraredSensor_detection(finalHole_sensorValue, finalHole_sensor_threshold, finalHole_max, finalHole_function);
 
-
+    if (startTimer == true){
+      reset_time = millis() - startTime;
+      
+    }
 
 
   }
@@ -187,17 +199,8 @@ void loop() {
     
   }
 
-  // Move servo to drop ball to lower level
-  
-  if (detectedHand == true) {
-    // When a hand is detected, open transition hole and then set timer for 30 sec before closing
-    transitionHole_servo.write(transitionHole_open);
-    detectionCount = 0;
-    detectedHand = false;
-  }
-
   // return servo to initial position
-  if (detectedHand_time >= 30) {
+  if (reset_time >= 30) {
     // After 30 seconds has passed, close servo and end detectedHand state
     transitionHole_servo.write(transitionHole_closed);
     detectedHand = false;
@@ -212,7 +215,7 @@ void loop() {
   
 }
 
-// Functions
+// Functions 
 uint16_t infraredSensor_detection(uint16_t sensorValue, uint16_t threshold, uint16_t max, void (*pointsFunction)(uint16_t)){
   // Checks if sensorValue falls below ir detection threshold
   if (sensorValue < threshold){
@@ -268,6 +271,7 @@ void impactSensor_calculatePoints(uint16_t impulsePeak){
 }
 
 void exitHole_pointAssignment(uint16_t detectionPeak){
+  exitHole_detected = true;
   // checking from highest to lowest point values
   if (detectionPeak >= exitHole_middle_threshold){
     playerScore += exitHole_middle_pointValue;
@@ -280,13 +284,23 @@ void exitHole_pointAssignment(uint16_t detectionPeak){
   }
 }
 
+void transitionHole_function(uint16_t detectionPeak){
+  handDetection_count += 1;
+}
+
+void finalHole_function(uint16_t detectionPeak){
+  // if ran, then already in final hole, so give player points and begin reset timer
+  playerScore += finalHole_points;
+  startTimer = true;
+}
+
 void moveMotor(uint16_t time, String upDown){
   pinMode(finalHole_motor_enable, 1);
-  if upDown == "up"{
+  if (upDown == "up"){
     digitalWrite(finalHole_motor_up_input, 1);
     digitalWrite(finalHole_motor_down_input, 0);
   }
-  if upDown == "down"{
+  if (upDown == "down"){
     digitalWrite(finalHole_motor_up_input, 0);
     digitalWrite(finalHole_motor_down_input, 1);
   }
