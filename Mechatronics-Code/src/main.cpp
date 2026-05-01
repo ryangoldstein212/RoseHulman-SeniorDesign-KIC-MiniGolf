@@ -50,7 +50,7 @@ uint16_t finalHole_sensorValue;
 // Final Hole IR detection
 uint16_t finalHole_sensor_threshold = 960;
 
-// Impulse Detection Globals
+// Impulse Detection
 uint16_t maxImpulse_15 = 0;
 uint16_t maxImpulse_610 = 0;
 
@@ -85,15 +85,14 @@ uint16_t playerScore = 0;
 uint16_t startTime = 0;
 uint16_t detectedHand_time = 0;
 
-// Transition hole globals
-
-
 // Function Declarations
 void sensorTesting(uint16_t impulse, uint16_t target, uint16_t threshold);
 uint16_t impulseDetection(uint16_t readValue, uint16_t threshold, uint16_t max);
 void impactSensor_calculatePoints(uint16_t impulsePeak);
 void exitHole_pointAssignment();
 void exitHole_detection(uint16_t exitHole_sensorValue);
+void transitionHole_detection();
+void finalHole_detection();
 
 
 void setup() {
@@ -128,13 +127,7 @@ void loop() {
     maxImpulse_610 = impulseDetection(pointSensor_610_value, impactSensor_threshold, maxImpulse_610);
 
     // Exit hole light sensor impulse detection
-    /*
-    Serial.print(pointSensor_15_value);
-    Serial.print("        ");
-    Serial.print(pointSensor_610_value);
-    Serial.print("        ");
-    Serial.println(playerScore);
-    */
+    
     
         // After exiting exit holes, enter Upper step state
 
@@ -209,6 +202,7 @@ void loop() {
     transitionHole_servo.write(transitionHole_closed);
     detectedHand = false;
   }
+
   // Lower Step and reset system
   if (state_reset_system == true) {
     // restart system
@@ -219,11 +213,20 @@ void loop() {
 }
 
 // Functions
-
-void exitHole_detection(uint16_t exitHole_sensorValue){
-  //theshold detection for falling analog signal
-  if (exitHole_sensorValue < lightSensor_tolerance){
-    exitHole_pointAssignment();
+uint16_t infraredSensor_detection(uint16_t sensorValue, uint16_t threshold, uint16_t max, void (*pointsFunction)(uint16_t)){
+  // Checks if sensorValue falls below ir detection threshold
+  if (sensorValue < threshold){
+    // if detection threshold is met, then continuously update max if max is less than current read value
+    if (sensorValue > max){
+      return sensorValue;
+    }else{
+      // if detection threshold is not met, then return what was passed in
+      return max;
+    }
+  }
+  else if (sensorValue > threshold + 5){
+    pointsFunction(max);
+    return 0;
   }
 }
 
@@ -245,7 +248,6 @@ uint16_t impulseDetection(uint16_t readValue, uint16_t threshold, uint16_t max){
   }
 }
 
-
 void impactSensor_calculatePoints(uint16_t impulsePeak){
   // Check from highest threshold to lowest. 
   if (impulsePeak >= pointValue_1_threshold){          
@@ -265,8 +267,29 @@ void impactSensor_calculatePoints(uint16_t impulsePeak){
   } 
 }
 
-void exitHole_pointAssignment(){
+void exitHole_pointAssignment(uint16_t detectionPeak){
+  // checking from highest to lowest point values
+  if (detectionPeak >= exitHole_middle_threshold){
+    playerScore += exitHole_middle_pointValue;
+  }
+  else if (detectionPeak >= exitHole_left_threshold){
+    playerScore += exitHole_left_pointValue;
+  }
+  else if (detectionPeak >= exitHole_right_threshold){
+    playerScore += exitHole_right_pointValue;
+  }
+}
 
+void moveMotor(uint16_t time, String upDown){
+  pinMode(finalHole_motor_enable, 1);
+  if upDown == "up"{
+    digitalWrite(finalHole_motor_up_input, 1);
+    digitalWrite(finalHole_motor_down_input, 0);
+  }
+  if upDown == "down"{
+    digitalWrite(finalHole_motor_up_input, 0);
+    digitalWrite(finalHole_motor_down_input, 1);
+  }
 }
 
 void sensorTesting(uint16_t impulse, uint16_t target, uint16_t tolerance){
