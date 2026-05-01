@@ -83,18 +83,17 @@ uint8_t transitionHole_open = 65;
 bool detectedHand = false;
 
 // System State switches
-bool state_plinko = false;
-bool state_upperStep = false;
-bool state_reveal = false;
-bool state_lowerStep = false;
-bool state_reset_system = false;
-bool state_reset_transiton = false;
+enum state{
+  welcome, plinko, upperStep, reveal, lowerStep, reset_transition, reset_system
+};
+
+state currentState = plinko;
 
 // counters and timers
 uint16_t playerScore = 0;
-uint16_t startTime = 0;
-uint16_t detectedHand_time = 0;
-uint16_t reset_time; 
+uint32_t startTime = 0;
+uint32_t detectedHand_time = 0;
+uint32_t reset_time; 
 bool startTimer = false;
 
 // Function Declarations
@@ -117,23 +116,30 @@ void setup() {
   pinMode(finalHole_motor_down_input, 1);
   pinMode(finalHole_motor_up_input, 1);
   pinMode(finalHole_motor_enable, 1);
-
-  state_plinko = true;
+  
+  Serial.println("Entering Plinko");
+  currentState = plinko;
   // Serial Monitor set up
   Serial.begin(9600);
 }
 
 
 void loop() {
-  // Plinko Section
-  if (state_plinko == true){
+  switch (currentState){
+    // Welcome State
+    case welcome:
+      // goes into plinko state when transition hole ir sensor detects a hand. LED display 
+    break;
+    
+    // Plinko Section
+    case plinko: 
     // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
     uint16_t pointSensor_15_value = analogRead(pointValue_15_sensorPin);
     uint16_t pointSensor_610_value = analogRead(pointValue_610_sensorPin);
     uint16_t exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
     uint16_t exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
     uint16_t exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
-    
+
     // Impact sensor impulse detection
     maxImpulse_15 = impulseDetection(pointSensor_15_value, impactSensor_threshold, maxImpulse_15);
     maxImpulse_610 = impulseDetection(pointSensor_610_value, impactSensor_threshold, maxImpulse_610);
@@ -142,31 +148,33 @@ void loop() {
     exitHole_left_max = infraredSensor_detection(exitHole_left_sensorValue, exitHole_left_threshold, exitHole_left_max, exitHole_pointAssignment);
     exitHole_middle_max = infraredSensor_detection(exitHole_middle_sensorValue, exitHole_middle_threshold, exitHole_middle_max, exitHole_pointAssignment);
     exitHole_right_max = infraredSensor_detection(exitHole_right_sensorValue, exitHole_right_threshold, exitHole_right_max, exitHole_pointAssignment);
-    
+
     // After exiting exit holes, enter Upper step state
     if (exitHole_detected == true){
-      state_upperStep = true;
-      state_plinko = false;
+      currentState = upperStep;
+      Serial.println("Leaving Plinko");
     }
-      //
-  }
+    break;
+
 
   // Upper step section
-  if (state_upperStep == true){
+  case upperStep:
+    Serial.println("Entering Upper Step");
     // watch transition hole light sensors for detections
     uint16_t transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
     transitionHole_max = infraredSensor_detection(transitionHole_sensorValue, transitionHole_sensor_threshold, transitionHole_max, transitionHole_function);
-    // point assignment(?)
-
+    
     // when the light sensors detect something twice, then go to reveal state
     if (handDetection_count >= 2){
-      state_reveal = true;
-      state_upperStep = false;
+      currentState = reveal;
+      Serial.println("Leaving Upper Step");
     }
-  }
+    break;
+
 
   // Reveal State
-  if (state_reveal == true){
+  case reveal:
+      Serial.println("Entering Reveal Step");
       // swing transition hole open, start servo reset timer
       transitionHole_servo.write(transitionHole_open);
       uint16_t currentTime = millis();
@@ -177,28 +185,28 @@ void loop() {
       // play zelda discover treasure theme
 
       // exit state to lower step phase
-      state_lowerStep = true;
-      state_reveal = false;
-  }
+      currentState = lowerStep;
+      Serial.println("Leaving Reveal Step");
+      break;
+
 
   // Lower State
-  if (state_lowerStep == true){
+  case lowerStep:
+    Serial.println("Entering Lower Step");
     // Ball detection and final score assignment
+    finalHole_sensorValue = analogRead(finalHole_sensorPin);
     finalHole_max = infraredSensor_detection(finalHole_sensorValue, finalHole_sensor_threshold, finalHole_max, finalHole_function);
 
     if (startTimer == true){
       reset_time = millis() - startTime;
       
     }
-
-
-  }
+    break;
 
   // Servo Reset
-  if (state_reset_transiton == true){
+  case reset_transition:
     
-  }
-
+    break;
   // return servo to initial position
   if (reset_time >= 30) {
     // After 30 seconds has passed, close servo and end detectedHand state
@@ -207,12 +215,12 @@ void loop() {
   }
 
   // Lower Step and reset system
-  if (state_reset_system == true) {
-    // restart system
+  case reset_system:
+    // restart system, move motor, 
 
+    // End
+    break;
   }
-  // End
-  
 }
 
 // Functions 
@@ -227,10 +235,13 @@ uint16_t infraredSensor_detection(uint16_t sensorValue, uint16_t threshold, uint
       return max;
     }
   }
-  else if (sensorValue > threshold + 5){
+  else if (sensorValue > threshold + 10){
+    // if detection threshold is reached again, then update points and reset max to zero
     pointsFunction(max);
     return 0;
   }
+  // if no detection, return keep max the same
+  return max;
 }
 
 uint16_t impulseDetection(uint16_t readValue, uint16_t threshold, uint16_t max){
@@ -244,11 +255,13 @@ uint16_t impulseDetection(uint16_t readValue, uint16_t threshold, uint16_t max){
       return max;
     }
   }
-  // if the detection threshold is met again, then stop running and calculate points
-  else if (readValue < threshold +5){
+  // if the detection threshold is met again, then stop running, calculate points, and reset max back to zero
+  else if (readValue < threshold + 10){
     impactSensor_calculatePoints(max);
     return 0;
   }
+  // if no detection, return keep max the same
+  return max;
 }
 
 void impactSensor_calculatePoints(uint16_t impulsePeak){
