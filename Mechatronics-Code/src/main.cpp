@@ -134,11 +134,11 @@ void loop() {
     // Plinko Section
     case plinko: {
       // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
-      uint16_t pointSensor_15_value = analogRead(pointValue_15_sensorPin);
-      uint16_t pointSensor_610_value = analogRead(pointValue_610_sensorPin);
-      uint16_t exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
-      uint16_t exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
-      uint16_t exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
+      pointSensor_15_value = analogRead(pointValue_15_sensorPin);
+      pointSensor_610_value = analogRead(pointValue_610_sensorPin);
+      exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
+      exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
+      exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
 
       // Impact sensor impulse detection
       maxImpulse_15 = impulseDetection(pointSensor_15_value, impactSensor_threshold, maxImpulse_15);
@@ -162,7 +162,7 @@ void loop() {
     case upperStep:{
       Serial.println("Entering Upper Step");
       // watch transition hole light sensors for detections
-      uint16_t transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
+      transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
       transitionHole_max = infraredSensor_detection(transitionHole_sensorValue, transitionHole_sensor_threshold, transitionHole_max, transitionHole_function);
       
       Serial.print(handDetection_count);
@@ -247,7 +247,7 @@ uint16_t infraredSensor_detection(uint16_t sensorValue, uint16_t threshold, uint
       return max;
     }
   }
-  else if (sensorValue > threshold + 10){
+  else if ((sensorValue > threshold) && (max > 0)){
     // if detection threshold is reached again, then update points and reset max to zero
     pointsFunction(max);
     return 0;
@@ -270,7 +270,7 @@ uint16_t impulseDetection(uint16_t readValue, uint16_t threshold, uint16_t max){
     }
   }
   // if the detection threshold is met again, then stop running, calculate points, and reset max back to zero
-  else if (readValue < threshold){
+  else if ((readValue < threshold) && (max > 0)){
     Serial.print("whats up?");
     impactSensor_calculatePoints(max);
     return 0;
