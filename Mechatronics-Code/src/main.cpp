@@ -17,8 +17,8 @@
 #define pointValue_610_sensorPin 0 // analog port for plinko touch sensors 6-10
 
 // Plinko Sensor Read Values Initialization
-uint16_t pointSensor_15_value;
-uint16_t pointSensor_610_value;
+uint16_t pointSensor_15_sensorValue;
+uint16_t pointSensor_610_sensorValue;
 uint16_t exitHole_left_sensorValue;
 uint16_t exitHole_middle_sensorValue;
 uint16_t exitHole_right_sensorValue;
@@ -36,10 +36,10 @@ uint16_t maxImpulse_15 = 0;
 uint16_t maxImpulse_610 = 0;
 
 uint8_t exitHole_sensor_tolerance = 7;
-uint8_t exitHole_left_threshold = 20;
-uint8_t exitHole_middle_threshold = 30;
-uint8_t exitHole_right_threshold = 40;
-uint8_t lightSensor_tolerance = 150; // light sensor values must be below this value for detection to be possible
+uint8_t exitHole_left_threshold = 36;
+uint8_t exitHole_middle_threshold = 45;
+uint8_t exitHole_right_threshold = 45;
+uint8_t lightSensor_tolerance = 150; 
 bool exitHole_detected = false;
 
 uint16_t exitHole_left_max = 0;
@@ -134,25 +134,37 @@ void loop() {
     // Plinko Section
     case plinko: {
       // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
-      pointSensor_15_value = analogRead(pointValue_15_sensorPin);
-      pointSensor_610_value = analogRead(pointValue_610_sensorPin);
+      pointSensor_15_sensorValue = analogRead(pointValue_15_sensorPin);
+      pointSensor_610_sensorValue = analogRead(pointValue_610_sensorPin);
       exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
       exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
       exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
 
       // Impact sensor impulse detection
-      maxImpulse_15 = impulseDetection(pointSensor_15_value, impactSensor_threshold, maxImpulse_15);
-      maxImpulse_610 = impulseDetection(pointSensor_610_value, impactSensor_threshold, maxImpulse_610);
+      maxImpulse_15 = impulseDetection(pointSensor_15_sensorValue, impactSensor_threshold, maxImpulse_15);
+      maxImpulse_610 = impulseDetection(pointSensor_610_sensorValue, impactSensor_threshold, maxImpulse_610);
+/*
+      Serial.print(pointSensor_15_sensorValue);
+      Serial.print("        ");
+      Serial.print(pointSensor_610_sensorValue);
+      Serial.print("        ");
+      Serial.println(playerScore);
+*/
 
       // Exit hole light sensor impulse detection
-      exitHole_left_max = infraredSensor_detection(exitHole_left_sensorValue, exitHole_left_threshold, exitHole_left_max, exitHole_pointAssignment);
-      exitHole_middle_max = infraredSensor_detection(exitHole_middle_sensorValue, exitHole_middle_threshold, exitHole_middle_max, exitHole_pointAssignment);
-      exitHole_right_max = infraredSensor_detection(exitHole_right_sensorValue, exitHole_right_threshold, exitHole_right_max, exitHole_pointAssignment);
-      Serial.print(exitHole_detected);
+      //exitHole_left_max = infraredSensor_detection(exitHole_left_sensorValue, exitHole_left_threshold, exitHole_left_max, exitHole_pointAssignment);
+      //exitHole_middle_max = infraredSensor_detection(exitHole_middle_sensorValue, exitHole_middle_threshold, exitHole_middle_max, exitHole_pointAssignment);
+      //exitHole_right_max = infraredSensor_detection(exitHole_right_sensorValue, exitHole_right_threshold, exitHole_right_max, exitHole_pointAssignment);
+      /*
+      Serial.print(exitHole_left_sensorValue);
       Serial.print("        ");
+      Serial.print(exitHole_middle_sensorValue);
+      Serial.print("        ");
+      Serial.println(exitHole_right_sensorValue);
+      */
       if (exitHole_detected == true){
         //currentState = upperStep;
-        Serial.println("Leaving Plinko");
+        //Serial.println("Leaving Plinko");
       }
       break;
       }
@@ -210,7 +222,7 @@ void loop() {
       }
       break;
     }
-    
+
 
   // Servo Reset
     case reset_transition:{
@@ -261,22 +273,21 @@ uint16_t impulseDetection(uint16_t readValue, uint16_t threshold, uint16_t max){
   if (readValue > threshold){
     // if the impulse detection threshold is met, then continuously update max if max is less than current read value
     if (readValue > max){
-      Serial.println("yo");
       return readValue; // updates max to readValue 
     }
     else{
-      Serial.println("gurt");
       return max;
     }
   }
   // if the detection threshold is met again, then stop running, calculate points, and reset max back to zero
   else if ((readValue < threshold) && (max > 0)){
-    Serial.print("whats up?");
+    Serial.print(readValue);
+    Serial.print("        ");
+    Serial.println(max);
     impactSensor_calculatePoints(max);
     return 0;
   }
   // if no detection, return keep max the same
-  Serial.println("the ceiling");
   return max;
 }
 
