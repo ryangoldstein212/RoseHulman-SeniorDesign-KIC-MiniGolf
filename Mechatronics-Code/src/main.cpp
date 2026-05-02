@@ -152,16 +152,16 @@ void loop() {
 */
 
       // Exit hole light sensor impulse detection
-      //exitHole_left_max = infraredSensor_detection(exitHole_left_sensorValue, exitHole_left_threshold, exitHole_left_max, exitHole_pointAssignment);
-      //exitHole_middle_max = infraredSensor_detection(exitHole_middle_sensorValue, exitHole_middle_threshold, exitHole_middle_max, exitHole_pointAssignment);
-      //exitHole_right_max = infraredSensor_detection(exitHole_right_sensorValue, exitHole_right_threshold, exitHole_right_max, exitHole_pointAssignment);
-      /*
+      exitHole_left_max = infraredSensor_detection(exitHole_left_sensorValue, exitHole_left_threshold, exitHole_left_max, exitHole_pointAssignment);
+      exitHole_middle_max = infraredSensor_detection(exitHole_middle_sensorValue, exitHole_middle_threshold, exitHole_middle_max, exitHole_pointAssignment);
+      exitHole_right_max = infraredSensor_detection(exitHole_right_sensorValue, exitHole_right_threshold, exitHole_right_max, exitHole_pointAssignment);
+      
       Serial.print(exitHole_left_sensorValue);
       Serial.print("        ");
       Serial.print(exitHole_middle_sensorValue);
       Serial.print("        ");
       Serial.println(exitHole_right_sensorValue);
-      */
+      
       if (exitHole_detected == true){
         //currentState = upperStep;
         //Serial.println("Leaving Plinko");
