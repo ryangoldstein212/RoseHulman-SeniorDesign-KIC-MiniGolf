@@ -23,6 +23,17 @@ int SCROLL_DELAY = 40;
 
 // text to display when LED is not used as a score board
 String ScoreBoardText = "Rose Show";
+
+// Non-blocking display state
+String displayMessage = "";
+bool scrollingActive = false;
+
+int scrollOffset = 32;
+int scrollEndOffset = 0;
+
+unsigned long lastScrollUpdate = 0;
+
+
 // LED Matrix ^ --------------------------------------------
 
 // Digital Pin definitions
@@ -148,10 +159,13 @@ void moveMotor(uint8_t upDown);
 void displaySmartTextBottom(String text); 
 void displayStaticTextBottom(String text);
 void setPixelBottom(int x, int y, bool state); 
-void scrollTextBottom(String message, int scrollDelay);
+//void scrollTextBottom(String message, int scrollDelay);
 void clearBottomOnly();
 void drawCharBottom(char c, int startX); 
 byte getCharRow(char c, int row);
+void startScrollingTextBottom(String message);
+void updateDisplayAnimation();
+void setDisplayText(String text);
 
 //LED letters and numbers------------
 // 5x7 digit font
@@ -235,6 +249,8 @@ int symbolCount = sizeof(symbolFont) / sizeof(symbolFont[0]);
 // LED ^-----
 
 void setup() {
+
+
   // Servo set up and initialization
   transitionHole_servo.attach(servo_Pin);
   transitionHole_servo.write(transitionHole_closed);
@@ -305,18 +321,38 @@ void setup() {
 
 
 void loop() {
+  updateDisplayAnimation();
   switch (currentState){
     // Welcome State
-    case welcome:
+    case welcome:{
       // goes into plinko state when transition hole ir sensor detects a hand. LED display 
-      displaySmartTextBottom(" Put hand in hole to start " + ScoreBoardText);
+      setDisplayText(" Put hand in hole to start " + ScoreBoardText);
       //IR sensor code for hand in hole to start
+      transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
+      Serial.println(transitionHole_sensorValue);
+      if (transitionHole_sensorValue < transitionHole_sensor_threshold) {
+        Serial.println(transitionHole_sensorValue);
+        if (ballEntered) {
+          Serial.println(ballEntered);
+            currentState = plinko;
+            Serial.println("Game Started - Place ball at Plinko");
+            //break;
+        } else {
+          Serial.println(ballEntered);
+            ballEntered = true;
+            delay(1000);
+        }
+      }
+
       break;
+    }
+
     
     
     // Plinko Section
     case plinko: {
-      displaySmartTextBottom("Start->");  // if not in welcome - display the score
+      //displaySmartTextBottom("Start->");  // if not in welcome - display the score
+      setDisplayText("Start->");
       // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
       pointSensor_15_value = analogRead(pointValue_15_sensorPin);
       pointSensor_610_value = analogRead(pointValue_610_sensorPin);
@@ -346,7 +382,7 @@ void loop() {
         Serial.println(playerScore);
         currentState = upperStep;
         Serial.println("Leaving Plinko");
-        displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
+        setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
 
       }
       if (exitHole_middle_sensorValue < exitHole_middle_threshold) {
@@ -355,16 +391,14 @@ void loop() {
         Serial.println(playerScore);
         currentState = upperStep;
         Serial.println("Leaving Plinko");
-        displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
-
+        setDisplayText(String(playerScore));
       }
       if (exitHole_right_sensorValue < exitHole_right_threshold) {
         playerScore += exitHole_right_pointValue;
         Serial.println(playerScore);
         currentState = upperStep;
         Serial.println("Leaving Plinko");
-        displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
-
+        setDisplayText(String(playerScore));
       }
       // Serial.print(exitHole_detected);
       // Serial.print("        ");
@@ -382,7 +416,7 @@ void loop() {
   // Upper step section
     case upperStep:{
       // watch transition hole light sensors for detections
-      displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
+      setDisplayText(String(playerScore));
       transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
       if (transitionHole_sensorValue < transitionHole_sensor_threshold) {
         Serial.println(transitionHole_sensorValue);
@@ -406,7 +440,7 @@ void loop() {
     //     currentState = reveal;
     //     Serial.println("Leaving Upper Step");
     //   }
-    displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
+    setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
     break;
     }
 
@@ -422,7 +456,7 @@ void loop() {
       digitalWrite(finalHole_motor_up_input, 0);
       delay(7300);
       digitalWrite(finalHole_motor_enable, 0);
-      displaySmartTextBottom("!!");  // something happened display something fun
+      setDisplayText("!!");  // something happened display something fun
       delay(1000);
 
       motorStartTime = millis();
@@ -441,7 +475,7 @@ void loop() {
       // exit state to lower step phase
       currentState = lowerStep;
       Serial.println("Leaving Reveal Step");
-      displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
+      setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
         motorMoving = false;
 
         currentState = lowerStep;
@@ -460,7 +494,7 @@ void loop() {
   // Lower State
     case lowerStep:{
       // Ball detection and final score assignment
-      displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
+      setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
       finalHole_sensorValue = analogRead(finalHole_sensorPin);
       if (finalHole_sensorValue < finalHole_sensor_threshold && motorMoving == false && waiting == false) {
         // do nothing until timer hits specified number
@@ -495,14 +529,14 @@ void loop() {
         reset_time = millis() - startTime;
         
       }
-      displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
+      setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
       break;
     }
     
 
   // Servo Reset
     case reset_transition:{
-      displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
+      setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
     
       break;
     }
@@ -519,7 +553,7 @@ void loop() {
     //moveMotor(true);
 
     // End
-      displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
+      setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
       break;
     }
   }
@@ -640,11 +674,49 @@ void sensorTesting(uint16_t impulse, uint16_t target, uint16_t tolerance){
 // LED matrix code -------------------------------------
 void displaySmartTextBottom(String text) {
   text.toUpperCase();
+  displayMessage = text;
 
-  if (text.length() <= 5) {
-    displayStaticTextBottom(text);
+  if (displayMessage.length() <= 5) {
+    scrollingActive = false;
+    displayStaticTextBottom(displayMessage);
   } else {
-    scrollTextBottom(text, SCROLL_DELAY);
+    startScrollingTextBottom(displayMessage);
+  }
+}
+
+void startScrollingTextBottom(String message) {
+  message.toUpperCase();
+
+  displayMessage = message;
+  scrollingActive = true;
+
+  scrollOffset = 32;
+  scrollEndOffset = -(displayMessage.length() * 6);
+
+  lastScrollUpdate = 0;
+}
+
+void updateDisplayAnimation() {
+  if (!scrollingActive) {
+    return;
+  }
+
+  if (millis() - lastScrollUpdate < SCROLL_DELAY) {
+    return;
+  }
+
+  lastScrollUpdate = millis();
+
+  clearBottomOnly();
+
+  for (int i = 0; i < displayMessage.length(); i++) {
+    drawCharBottom(displayMessage[i], scrollOffset + i * 6);
+  }
+
+  scrollOffset--;
+
+  if (scrollOffset < scrollEndOffset) {
+    scrollOffset = 32;  // restart scrolling from the right
   }
 }
 
@@ -666,6 +738,7 @@ void displayStaticTextBottom(String text) {
 }
 
 // Scroll text using only bottom 32x8 row
+/*
 void scrollTextBottom(String message, int scrollDelay) {
   message.toUpperCase();
 
@@ -685,6 +758,7 @@ void scrollTextBottom(String message, int scrollDelay) {
 
   clearBottomOnly();
 }
+*/
 
 // =======================================================
 // BOTTOM ROW ONLY PIXEL MAPPING
@@ -766,6 +840,14 @@ byte getCharRow(char c, int row) {
   }
 
   return 0b00000;
+}
+
+void setDisplayText(String text) {
+  text.toUpperCase();
+
+  if (text != displayMessage) {
+    displaySmartTextBottom(text);
+  }
 }
 
 // LED matrix code ----------------------------^
