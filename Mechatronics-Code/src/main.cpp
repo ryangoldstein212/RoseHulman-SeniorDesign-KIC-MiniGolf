@@ -62,9 +62,6 @@ uint16_t finalHole_sensor_threshold = 825;
 uint16_t finalHole_max = 0;
 uint16_t finalHole_points = 300;
 
-// Impulse Detection
-
-
 //Point assignments
 uint16_t pointValue_1 = 10;
 uint16_t pointValue_2 = 20;
@@ -82,12 +79,26 @@ uint8_t transitionHole_closed = 15;
 uint8_t transitionHole_open = 65;
 bool detectedHand = false;
 
+// Final Hole Globals
+bool homed = false;
+uint16_t upTime = 2000; // time motor moves up from homed position to top
+uint16_t downTime = 1000; // time motor moves down from homed position to bottom
+bool motorMoving = false; // flag for when the motor moves or not
+uint32_t motorStartTime = 0;
+
+// Reset Globals
+bool waiting = false; // flag for when to wait before activating the motor during reset
+uint32_t waitStartTime = 0;
+uint16_t waitTime = 1000;
+
+
+
 // System State switches
 enum state {
   welcome, plinko, upperStep, reveal, lowerStep, reset_transition, reset_system
 };
 
-state currentState = plinko;
+state currentState = plinko; // state control object
 
 // counters and timers
 uint16_t playerScore = 0;
@@ -118,7 +129,56 @@ void setup() {
   pinMode(finalHole_motor_down_input, 1);
   pinMode(finalHole_motor_up_input, 1);
   pinMode(finalHole_motor_enable, 1);
+
+  // Lower step motor homing sequence
+  finalHole_sensorValue = analogRead(finalHole_sensorPin);
+
+  // if the sensor is broken, ie. the platform and/or rack is blocking sensor, then move the rack down
+  if (finalHole_sensorValue < finalHole_sensor_threshold){
+    digitalWrite(finalHole_motor_enable, 1);
+    while (finalHole_sensorValue < finalHole_sensor_threshold){
+      finalHole_sensorValue = analogRead(finalHole_sensorPin);
+      digitalWrite(finalHole_motor_up_input, 0);
+      digitalWrite(finalHole_motor_down_input, 1);
+    }
+    // turn off motor
+    digitalWrite(finalHole_motor_enable, 0);
+    digitalWrite(finalHole_motor_down_input, 0);
+    digitalWrite(finalHole_motor_up_input, 0);
+    homed = true;
+  }
+  // if the sensor is not broken, i.e. the platform is below the sensor, then move the rack up
+  else if (finalHole_sensorValue > finalHole_sensor_threshold){
+    digitalWrite(finalHole_motor_enable, 1);
+    while (finalHole_sensorValue > finalHole_sensor_threshold){
+      finalHole_sensorValue = analogRead(finalHole_sensorPin);
+      // move motor up
+      digitalWrite(finalHole_motor_down_input, 0);
+      digitalWrite(finalHole_motor_up_input, 1);
+    }
+    // turn off motor 
+    digitalWrite(finalHole_motor_enable, 0);
+    digitalWrite(finalHole_motor_down_input, 0);
+    digitalWrite(finalHole_motor_up_input, 0);
+    homed = true;
+  }
+  else{
+    homed = true;
+  }
   
+  // once rack is in standard position, then move rack up
+  if (homed == true){
+    digitalWrite(finalHole_motor_enable, 1);
+    digitalWrite(finalHole_motor_down_input, 0);
+    digitalWrite(finalHole_motor_up_input, 1);
+    delay(upTime);
+
+    // turn motor off again
+    digitalWrite(finalHole_motor_enable, 0);
+    digitalWrite(finalHole_motor_down_input, 0);
+    digitalWrite(finalHole_motor_up_input, 0);
+  }
+
   Serial.println("Entering Plinko");
   // Serial Monitor set up
   Serial.begin(9600);
@@ -219,23 +279,38 @@ void loop() {
   // Reveal State
     case reveal:{
       // swing transition hole open, start servo reset timer
+
+      // move servo out and begin moving motor down
+      if (motorMoving == false){
       transitionHole_servo.write(transitionHole_open);
-      uint16_t currentTime = millis();
-      reset_time = (currentTime - startTime)/1000;
+
       digitalWrite(finalHole_motor_enable, 1);
       digitalWrite(finalHole_motor_down_input, 1);
       digitalWrite(finalHole_motor_up_input, 0);
-      delay(7300);
-      digitalWrite(finalHole_motor_enable, 0);
-      delay(1000);
 
-      // Lower final hole motor
+      motorStartTime = millis();
+      motorMoving = true;
+      
+      // delay(7300);
+      // digitalWrite(finalHole_motor_enable, 0);
+      // delay(1000);
+      }
 
-      // play zelda discover treasure theme
+      if (motorMoving == true && (millis() - motorStartTime >= downTime)){
+        // motor should be at bottom now, so turn off motor
+        digitalWrite(finalHole_motor_enable, 0);
+        digitalWrite(finalHole_motor_down_input, 0);
 
-      // exit state to lower step phase
-      currentState = lowerStep;
-      Serial.println("Leaving Reveal Step");
+        moveMotor = false;
+
+        currentState = lowerStep;
+        Serial.println("Leaving Reveal Step");
+
+        // play zelda discover treasure theme
+
+        // exit state to lower step phase
+      
+      }
       break;
     }
 
@@ -244,12 +319,14 @@ void loop() {
     case lowerStep:{
       // Ball detection and final score assignment
       finalHole_sensorValue = analogRead(finalHole_sensorPin);
-      if (finalHole_sensorValue < finalHole_sensor_threshold) {
-        digitalWrite(finalHole_motor_enable, 1);
+
+      if (finalHole_sensorValue < finalHole_sensor_threshold && motorMoving == false && waiting == false) {
+        // closes hole by sending motor up
+        digitalWrite(finalHole_motor_enable, 1); // turns motor on
         digitalWrite(finalHole_motor_down_input, 0);
         digitalWrite(finalHole_motor_up_input, 1);
         delay(7300);
-        digitalWrite(finalHole_motor_enable, 0);
+        digitalWrite(finalHole_motor_enable, 0); // turns motor off
         currentState = plinko;
       }
     //   finalHole_max = infraredSensor_detection(finalHole_sensorValue, finalHole_sensor_threshold, finalHole_max, finalHole_function);
