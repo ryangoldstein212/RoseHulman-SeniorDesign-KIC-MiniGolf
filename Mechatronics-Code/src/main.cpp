@@ -116,8 +116,6 @@ void impactSensor_calculatePoints(uint16_t impulsePeak);
 void exitHole_pointAssignment(uint16_t detectionPeak);
 void transitionHole_function(uint16_t detectionPeak);
 void finalHole_function(uint16_t detectionPeak);
-void moveMotor(uint8_t upDown);
-
 
 
 void setup() {
@@ -301,7 +299,7 @@ void loop() {
         digitalWrite(finalHole_motor_enable, 0);
         digitalWrite(finalHole_motor_down_input, 0);
 
-        moveMotor = false;
+        motorMoving = false;
 
         currentState = lowerStep;
         Serial.println("Leaving Reveal Step");
@@ -321,13 +319,31 @@ void loop() {
       finalHole_sensorValue = analogRead(finalHole_sensorPin);
 
       if (finalHole_sensorValue < finalHole_sensor_threshold && motorMoving == false && waiting == false) {
-        // closes hole by sending motor up
+        // do nothing until timer hits specified number
+        waitStartTime = millis();
+        waiting = true;
+
+      // motor move up after wait timer expires
+      if (waiting = true && (millis() - waitStartTime >= waitTime)){
         digitalWrite(finalHole_motor_enable, 1); // turns motor on
         digitalWrite(finalHole_motor_down_input, 0);
         digitalWrite(finalHole_motor_up_input, 1);
-        delay(7300);
-        digitalWrite(finalHole_motor_enable, 0); // turns motor off
-        currentState = plinko;
+
+        motorStartTime = millis();
+        motorMoving = true;
+        waiting = false;
+
+      }
+      
+      // motor stops moving after move timer expires
+      if (motorMoving == true && (millis() - motorStartTime >= upTime)){
+          digitalWrite(finalHole_motor_enable, 0);
+          digitalWrite(finalHole_motor_up_input, 0);
+
+          motorMoving = false;
+          currentState = plinko;
+      }
+        
       }
     //   finalHole_max = infraredSensor_detection(finalHole_sensorValue, finalHole_sensor_threshold, finalHole_max, finalHole_function);
 
@@ -448,21 +464,6 @@ void finalHole_function(uint16_t detectionPeak){
   // if ran, then already in final hole, so give player points and begin reset timer
   playerScore += finalHole_points;
   startTimer = true;
-}
-
-void moveMotor(uint8_t upDown){
-  pinMode(finalHole_motor_enable, 1);
-  if (upDown == 1){
-    // Move motor up
-    digitalWrite(finalHole_motor_up_input, 1);
-    digitalWrite(finalHole_motor_down_input, 0);
-  }
-  if (upDown == 0){
-    // move motor down
-
-    digitalWrite(finalHole_motor_up_input, 0);
-    digitalWrite(finalHole_motor_down_input, 1);
-  }
 }
 
 void sensorTesting(uint16_t impulse, uint16_t target, uint16_t tolerance){
