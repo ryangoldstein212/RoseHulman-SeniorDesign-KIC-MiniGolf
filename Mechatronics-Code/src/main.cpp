@@ -1,6 +1,30 @@
 #include <Arduino.h>
 #include <Servo.h>
 
+//LED matrix ------------------------------------------------
+#include <MD_MAX72xx.h>
+#include <SPI.h>
+
+#define HARDWARE_TYPE MD_MAX72XX::FC16_HW
+#define MAX_DEVICES 8
+#define CS_PIN 53
+
+MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
+
+// Your confirmed orientation settings
+bool TOP_IS_FIRST = false;
+bool REVERSE_TOP_X = true;
+bool REVERSE_BOTTOM_X = false;
+bool FLIP_TOP_Y = false;
+bool FLIP_BOTTOM_Y = true;
+
+// Scrolling speed
+int SCROLL_DELAY = 40;
+
+// text to display when LED is not used as a score board
+String ScoreBoardText = "Rose Show";
+// LED Matrix ^ --------------------------------------------
+
 // Digital Pin definitions
 #define servo_Pin 2
 #define finalHole_motor_up_input 3
@@ -107,7 +131,95 @@ void transitionHole_function(uint16_t detectionPeak);
 void finalHole_function(uint16_t detectionPeak);
 void moveMotor(uint8_t upDown);
 
+//LED function Declarations 
+void displaySmartTextBottom(String text); 
+void displayStaticTextBottom(String text);
+void setPixelBottom(int x, int y, bool state); 
+void scrollTextBottom(String message, int scrollDelay);
+void clearBottomOnly();
+void drawCharBottom(char c, int startX); 
+byte getCharRow(char c, int row);
 
+//LED letters and numbers------------
+// 5x7 digit font
+byte digitFont[10][7] = {
+  {0b01110, 0b10001, 0b10011, 0b10101, 0b11001, 0b10001, 0b01110}, // 0
+  {0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110}, // 1
+  {0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b01000, 0b11111}, // 2
+  {0b11110, 0b00001, 0b00001, 0b01110, 0b00001, 0b00001, 0b11110}, // 3
+  {0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010}, // 4
+  {0b11111, 0b10000, 0b10000, 0b11110, 0b00001, 0b00001, 0b11110}, // 5
+  {0b01110, 0b10000, 0b10000, 0b11110, 0b10001, 0b10001, 0b01110}, // 6
+  {0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b01000, 0b01000}, // 7
+  {0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110}, // 8
+  {0b01110, 0b10001, 0b10001, 0b01111, 0b00001, 0b00001, 0b01110}  // 9
+};
+
+// 5x7 uppercase letter font
+byte letterFont[26][7] = {
+  {0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001}, // A
+  {0b11110, 0b10001, 0b10001, 0b11110, 0b10001, 0b10001, 0b11110}, // B
+  {0b01110, 0b10001, 0b10000, 0b10000, 0b10000, 0b10001, 0b01110}, // C
+  {0b11110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b11110}, // D
+  {0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111}, // E
+  {0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b10000}, // F
+  {0b01110, 0b10001, 0b10000, 0b10111, 0b10001, 0b10001, 0b01110}, // G
+  {0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001}, // H
+  {0b01110, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110}, // I
+  {0b00111, 0b00010, 0b00010, 0b00010, 0b10010, 0b10010, 0b01100}, // J
+  {0b10001, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010, 0b10001}, // K
+  {0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111}, // L
+  {0b10001, 0b11011, 0b10101, 0b10101, 0b10001, 0b10001, 0b10001}, // M
+  {0b10001, 0b11001, 0b10101, 0b10011, 0b10001, 0b10001, 0b10001}, // N
+  {0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110}, // O
+  {0b11110, 0b10001, 0b10001, 0b11110, 0b10000, 0b10000, 0b10000}, // P
+  {0b01110, 0b10001, 0b10001, 0b10001, 0b10101, 0b10010, 0b01101}, // Q
+  {0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001}, // R
+  {0b01111, 0b10000, 0b10000, 0b01110, 0b00001, 0b00001, 0b11110}, // S
+  {0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100}, // T
+  {0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110}, // U
+  {0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01010, 0b00100}, // V
+  {0b10001, 0b10001, 0b10001, 0b10101, 0b10101, 0b10101, 0b01010}, // W
+  {0b10001, 0b10001, 0b01010, 0b00100, 0b01010, 0b10001, 0b10001}, // X
+  {0b10001, 0b10001, 0b01010, 0b00100, 0b00100, 0b00100, 0b00100}, // Y
+  {0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b11111}  // Z
+};
+
+struct SymbolMap {
+  char symbol;
+  byte rows[7];
+};
+
+SymbolMap symbolFont[] = {
+  {'.', {0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b01100, 0b01100}},
+  {',', {0b00000, 0b00000, 0b00000, 0b00000, 0b01100, 0b01100, 0b01000}},
+  {':', {0b00000, 0b01100, 0b01100, 0b00000, 0b01100, 0b01100, 0b00000}},
+  {';', {0b00000, 0b01100, 0b01100, 0b00000, 0b01100, 0b01100, 0b01000}},
+  {'!', {0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00000, 0b00100}},
+  {'?', {0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b00000, 0b00100}},
+  {'-', {0b00000, 0b00000, 0b00000, 0b11111, 0b00000, 0b00000, 0b00000}},
+  {'_', {0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b11111}},
+  {'+', {0b00000, 0b00100, 0b00100, 0b11111, 0b00100, 0b00100, 0b00000}},
+  {'=', {0b00000, 0b00000, 0b11111, 0b00000, 0b11111, 0b00000, 0b00000}},
+  {'/', {0b00001, 0b00010, 0b00010, 0b00100, 0b01000, 0b01000, 0b10000}},
+  {'\\',{0b10000, 0b01000, 0b01000, 0b00100, 0b00010, 0b00010, 0b00001}},
+  {'|', {0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100}},
+  {'\'',{0b00100, 0b00100, 0b01000, 0b00000, 0b00000, 0b00000, 0b00000}},
+  {'"', {0b01010, 0b01010, 0b01010, 0b00000, 0b00000, 0b00000, 0b00000}},
+  {'(', {0b00010, 0b00100, 0b01000, 0b01000, 0b01000, 0b00100, 0b00010}},
+  {')', {0b01000, 0b00100, 0b00010, 0b00010, 0b00010, 0b00100, 0b01000}},
+  {'[', {0b01110, 0b01000, 0b01000, 0b01000, 0b01000, 0b01000, 0b01110}},
+  {']', {0b01110, 0b00010, 0b00010, 0b00010, 0b00010, 0b00010, 0b01110}},
+  {'<', {0b00010, 0b00100, 0b01000, 0b10000, 0b01000, 0b00100, 0b00010}},
+  {'>', {0b01000, 0b00100, 0b00010, 0b00001, 0b00010, 0b00100, 0b01000}},
+  {'#', {0b01010, 0b01010, 0b11111, 0b01010, 0b11111, 0b01010, 0b01010}},
+  {'*', {0b00000, 0b10101, 0b01110, 0b11111, 0b01110, 0b10101, 0b00000}},
+  {'%', {0b11001, 0b11010, 0b00010, 0b00100, 0b01000, 0b01011, 0b10011}},
+  {' ', {0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000}}
+};
+
+int symbolCount = sizeof(symbolFont) / sizeof(symbolFont[0]);
+// LED ^-----
 
 void setup() {
   // Servo set up and initialization
@@ -119,6 +231,12 @@ void setup() {
   pinMode(finalHole_motor_up_input, 1);
   pinMode(finalHole_motor_enable, 1);
   
+  // LED Set Up
+  mx.begin();
+  mx.control(MD_MAX72XX::INTENSITY, 5);
+  mx.clear();
+  
+
   Serial.println("Entering Plinko");
   // Serial Monitor set up
   Serial.begin(9600);
@@ -130,10 +248,14 @@ void loop() {
     // Welcome State
     case welcome:
       // goes into plinko state when transition hole ir sensor detects a hand. LED display 
+      displaySmartTextBottom(" Put hand in hole to start " + ScoreBoardText);
+      //IR sensor code for hand in hole to start
       break;
+    
     
     // Plinko Section
     case plinko: {
+      displaySmartTextBottom("Start->");  // if not in welcome - display the score
       // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
       pointSensor_15_value = analogRead(pointValue_15_sensorPin);
       pointSensor_610_value = analogRead(pointValue_610_sensorPin);
@@ -150,6 +272,7 @@ void loop() {
       // Impact sensor impulse detection
       if (pointSensor_15_value > impactSensor_threshold) {
         impulseDetection(impactSensor_threshold);
+        
       }
       if (pointSensor_610_value > impactSensor_threshold) {
         impulseDetection(impactSensor_threshold);
@@ -162,6 +285,8 @@ void loop() {
         Serial.println(playerScore);
         currentState = upperStep;
         Serial.println("Leaving Plinko");
+        displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
+
       }
       if (exitHole_middle_sensorValue < exitHole_middle_threshold) {
         // Serial.println(exitHole_middle_sensorValue);
@@ -169,12 +294,16 @@ void loop() {
         Serial.println(playerScore);
         currentState = upperStep;
         Serial.println("Leaving Plinko");
+        displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
+
       }
       if (exitHole_right_sensorValue < exitHole_right_threshold) {
         playerScore += exitHole_right_pointValue;
         Serial.println(playerScore);
         currentState = upperStep;
         Serial.println("Leaving Plinko");
+        displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
+
       }
       // Serial.print(exitHole_detected);
       // Serial.print("        ");
@@ -182,6 +311,9 @@ void loop() {
       //   //currentState = upperStep;
       //   Serial.println("Leaving Plinko");
       // }
+
+      //displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
+      
       break;
       }
 
@@ -189,6 +321,7 @@ void loop() {
   // Upper step section
     case upperStep:{
       // watch transition hole light sensors for detections
+      displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
       transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
       if (transitionHole_sensorValue < transitionHole_sensor_threshold) {
         Serial.println(transitionHole_sensorValue);
@@ -212,6 +345,7 @@ void loop() {
     //     currentState = reveal;
     //     Serial.println("Leaving Upper Step");
     //   }
+    displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
     break;
     }
 
@@ -219,6 +353,7 @@ void loop() {
   // Reveal State
     case reveal:{
       // swing transition hole open, start servo reset timer
+      
       transitionHole_servo.write(transitionHole_open);
       uint16_t currentTime = millis();
       reset_time = (currentTime - startTime)/1000;
@@ -227,6 +362,7 @@ void loop() {
       digitalWrite(finalHole_motor_up_input, 0);
       delay(7300);
       digitalWrite(finalHole_motor_enable, 0);
+      displaySmartTextBottom("!!");  // something happened display something fun
       delay(1000);
 
       // Lower final hole motor
@@ -236,6 +372,7 @@ void loop() {
       // exit state to lower step phase
       currentState = lowerStep;
       Serial.println("Leaving Reveal Step");
+      displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
       break;
     }
 
@@ -243,6 +380,7 @@ void loop() {
   // Lower State
     case lowerStep:{
       // Ball detection and final score assignment
+      displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
       finalHole_sensorValue = analogRead(finalHole_sensorPin);
       if (finalHole_sensorValue < finalHole_sensor_threshold) {
         digitalWrite(finalHole_motor_enable, 1);
@@ -258,12 +396,14 @@ void loop() {
         reset_time = millis() - startTime;
         
       }
+      displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
       break;
     }
     
 
   // Servo Reset
     case reset_transition:{
+      displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
     
       break;
     }
@@ -280,6 +420,7 @@ void loop() {
     //moveMotor(true);
 
     // End
+      displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
       break;
     }
   }
@@ -395,3 +536,137 @@ void sensorTesting(uint16_t impulse, uint16_t target, uint16_t tolerance){
         transitionHole_servo.write(transitionHole_closed);
   }
 }
+
+
+// LED matrix code -------------------------------------
+void displaySmartTextBottom(String text) {
+  text.toUpperCase();
+
+  if (text.length() <= 5) {
+    displayStaticTextBottom(text);
+  } else {
+    scrollTextBottom(text, SCROLL_DELAY);
+  }
+}
+
+// Static text using only bottom 32x8 row
+void displayStaticTextBottom(String text) {
+  clearBottomOnly();
+
+  if (text.length() > 5) {
+    text = text.substring(0, 5);
+  }
+
+  int charWidth = 6;
+  int totalWidth = text.length() * charWidth - 1;
+  int startX = (32 - totalWidth) / 2;
+
+  for (int i = 0; i < text.length(); i++) {
+    drawCharBottom(text[i], startX + i * charWidth);
+  }
+}
+
+// Scroll text using only bottom 32x8 row
+void scrollTextBottom(String message, int scrollDelay) {
+  message.toUpperCase();
+
+  int totalWidth = message.length() * 6;
+  int startOffset = 32;
+  int endOffset = -totalWidth;
+
+  for (int offset = startOffset; offset >= endOffset; offset--) {
+    clearBottomOnly();
+
+    for (int i = 0; i < message.length(); i++) {
+      drawCharBottom(message[i], offset + i * 6);
+    }
+
+    delay(scrollDelay);
+  }
+
+  clearBottomOnly();
+}
+
+// =======================================================
+// BOTTOM ROW ONLY PIXEL MAPPING
+// Logical bottom display: x = 0..31, y = 0..7
+// =======================================================
+
+void setPixelBottom(int x, int y, bool state) {
+  if (x < 0 || x >= 32 || y < 0 || y >= 8) return;
+
+  int localX = x;
+  int localY = y;
+
+  // Bottom module orientation from your working setup
+  if (REVERSE_BOTTOM_X) {
+    localX = 31 - localX;
+  }
+
+  if (FLIP_BOTTOM_Y) {
+    localY = 7 - localY;
+  }
+
+  int physicalX;
+
+  // Since TOP_IS_FIRST = false, bottom row is the first 32 pixels in the chain
+  if (TOP_IS_FIRST) {
+    physicalX = localX + 32;
+  } else {
+    physicalX = localX;
+  }
+
+  mx.setPoint(localY, physicalX, state);
+}
+
+void clearBottomOnly() {
+  for (int y = 0; y < 8; y++) {
+    for (int x = 0; x < 32; x++) {
+      setPixelBottom(x, y, false);
+    }
+  }
+}
+
+// =======================================================
+// DRAWING FUNCTIONS
+// =======================================================
+
+void drawCharBottom(char c, int startX) {
+  int startY = 0;
+
+  for (int row = 0; row < 7; row++) {
+    byte rowData = getCharRow(c, row);
+
+    for (int col = 0; col < 5; col++) {
+      bool pixelOn = rowData & (1 << (4 - col));
+
+      if (pixelOn) {
+        setPixelBottom(startX + col, startY + row, true);
+      }
+    }
+  }
+}
+
+byte getCharRow(char c, int row) {
+  if (c >= '0' && c <= '9') {
+    return digitFont[c - '0'][row];
+  }
+
+  if (c >= 'A' && c <= 'Z') {
+    return letterFont[c - 'A'][row];
+  }
+
+  if (c >= 'a' && c <= 'z') {
+    return letterFont[c - 'a'][row];
+  }
+
+  for (int i = 0; i < symbolCount; i++) {
+    if (symbolFont[i].symbol == c) {
+      return symbolFont[i].rows[row];
+    }
+  }
+
+  return 0b00000;
+}
+
+// LED matrix code ----------------------------^
