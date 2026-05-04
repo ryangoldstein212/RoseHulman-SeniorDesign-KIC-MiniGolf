@@ -324,7 +324,7 @@ void loop() {
         waiting = true;
 
       // motor move up after wait timer expires
-      if (waiting = true && (millis() - waitStartTime >= waitTime)){
+      if (waiting == true && (millis() - waitStartTime >= waitTime)){
         digitalWrite(finalHole_motor_enable, 1); // turns motor on
         digitalWrite(finalHole_motor_down_input, 0);
         digitalWrite(finalHole_motor_up_input, 1);
