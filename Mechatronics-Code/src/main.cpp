@@ -123,11 +123,12 @@ uint16_t upTime = 2000; // time motor moves up from homed position to top
 uint16_t downTime = 1000; // time motor moves down from homed position to bottom
 bool motorMoving = false; // flag for when the motor moves or not
 uint32_t motorStartTime = 0;
+uint16_t time_score_mult = .5;
 
 // Reset Globals
 bool waiting = false; // flag for when to wait before activating the motor during reset
 uint32_t waitStartTime = 0;
-uint16_t waitTime = 1000;
+uint16_t waitTime = 5000;
 
 
 // System State switches
@@ -142,8 +143,8 @@ uint16_t playerScore = 0;
 uint32_t startTime = 0;
 uint32_t detectedHand_time = 0;
 uint32_t reset_time; 
-bool startTimer = false;
-bool ballEntered = false;
+uint32_t start_time;
+uint32_t end_time;
 
 // Function Declarations
 void sensorTesting(uint16_t impulse, uint16_t target, uint16_t threshold);
@@ -154,6 +155,8 @@ void exitHole_pointAssignment(uint16_t detectionPeak);
 void transitionHole_function(uint16_t detectionPeak);
 void finalHole_function(uint16_t detectionPeak);
 void moveMotor(uint8_t upDown);
+uint16_t irSensorCalibration(uint16_t analog);
+void homeFinalMotor();
 
 //LED function Declarations 
 void displaySmartTextBottom(String text); 
@@ -166,7 +169,6 @@ byte getCharRow(char c, int row);
 void startScrollingTextBottom(String message);
 void updateDisplayAnimation();
 void setDisplayText(String text);
-
 //LED letters and numbers------------
 // 5x7 digit font
 byte digitFont[10][7] = {
@@ -259,48 +261,22 @@ void setup() {
   pinMode(finalHole_motor_down_input, 1);
   pinMode(finalHole_motor_up_input, 1);
   pinMode(finalHole_motor_enable, 1);
-  
+  digitalWrite(finalHole_motor_enable, 0);
+  digitalWrite(finalHole_motor_up_input, 0);
+  digitalWrite(finalHole_motor_down_input, 0);
+
+  exitHole_left_threshold = irSensorCalibration(exitHole_left_sensorPin) - 10;
+  exitHole_right_threshold = irSensorCalibration(exitHole_right_sensorPin) - 10;
+  exitHole_middle_threshold = irSensorCalibration(exitHole_middle_sensorPin) - 10;
+  transitionHole_sensor_threshold = irSensorCalibration(transitionHole_sensorPin) - 10;
+  finalHole_sensor_threshold = irSensorCalibration(finalHole_sensorPin) - 10;
+
   // Lower step motor homing sequence
   finalHole_sensorValue = analogRead(finalHole_sensorPin);
 
   // if the sensor is broken, ie. the platform and/or rack is blocking sensor, then move the rack down
-  if (finalHole_sensorValue < finalHole_sensor_threshold){
-    digitalWrite(finalHole_motor_enable, 1);
-    while (finalHole_sensorValue < finalHole_sensor_threshold){
-      finalHole_sensorValue = analogRead(finalHole_sensorPin);
-      digitalWrite(finalHole_motor_up_input, 0);
-      digitalWrite(finalHole_motor_down_input, 1);
-    }
-    // turn off motor
-    digitalWrite(finalHole_motor_enable, 0);
-    digitalWrite(finalHole_motor_down_input, 0);
-    digitalWrite(finalHole_motor_up_input, 0);
-    homed = true;
-  }
-  // if the sensor is not broken, i.e. the platform is below the sensor, then move the rack up
-  else if (finalHole_sensorValue > finalHole_sensor_threshold){
-    digitalWrite(finalHole_motor_enable, 1);
-    while (finalHole_sensorValue > finalHole_sensor_threshold){
-      finalHole_sensorValue = analogRead(finalHole_sensorPin);
-      // move motor up
-      digitalWrite(finalHole_motor_down_input, 0);
-      digitalWrite(finalHole_motor_up_input, 1);
-    }
-    // turn off motor 
-    digitalWrite(finalHole_motor_enable, 0);
-    digitalWrite(finalHole_motor_down_input, 0);
-    digitalWrite(finalHole_motor_up_input, 0);
-    homed = true;
-  }
-  else{
-    homed = true;
-  }
+  homeFinalMotor();
 
-  // LED Set Up
-  mx.begin();
-  mx.control(MD_MAX72XX::INTENSITY, 5);
-  mx.clear();
-  
   // once rack is in standard position, then move rack up
   if (homed == true){
     digitalWrite(finalHole_motor_enable, 1);
@@ -314,6 +290,11 @@ void setup() {
     digitalWrite(finalHole_motor_up_input, 0);
   }
 
+  // LED Set Up
+  mx.begin();
+  mx.control(MD_MAX72XX::INTENSITY, 5);
+  mx.clear();
+
   Serial.println("Entering Plinko");
   // Serial Monitor set up
   Serial.begin(9600);
@@ -322,28 +303,18 @@ void setup() {
 
 void loop() {
   updateDisplayAnimation();
-  switch (currentState){
+  switch (currentState) {
     // Welcome State
     case welcome:{
       // goes into plinko state when transition hole ir sensor detects a hand. LED display 
-      setDisplayText(" Put hand in hole to start " + ScoreBoardText);
+      setDisplayText("Put hand in hole to start " + ScoreBoardText);
       //IR sensor code for hand in hole to start
       transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
       Serial.println(transitionHole_sensorValue);
       if (transitionHole_sensorValue < transitionHole_sensor_threshold) {
-        Serial.println(transitionHole_sensorValue);
-        if (ballEntered) {
-          Serial.println(ballEntered);
-            currentState = plinko;
-            Serial.println("Game Started - Place ball at Plinko");
-            //break;
-        } else {
-          Serial.println(ballEntered);
-            ballEntered = true;
-            delay(1000);
-        }
+        currentState = plinko;
+        Serial.println("Game Started - Place ball at Plinko");
       }
-
       break;
     }
 
@@ -351,6 +322,7 @@ void loop() {
     
     // Plinko Section
     case plinko: {
+      bool leavingPlinko = false;
       //displaySmartTextBottom("Start->");  // if not in welcome - display the score
       setDisplayText("Start->");
       // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
@@ -379,38 +351,25 @@ void loop() {
       if (exitHole_left_sensorValue < exitHole_left_threshold) {
         // switch case and deal with points
         playerScore += exitHole_left_pointValue;
-        Serial.println(playerScore);
-        currentState = upperStep;
-        Serial.println("Leaving Plinko");
-        setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
-
+        leavingPlinko = true;
       }
       if (exitHole_middle_sensorValue < exitHole_middle_threshold) {
         // Serial.println(exitHole_middle_sensorValue);
         playerScore += exitHole_middle_pointValue;
-        Serial.println(playerScore);
-        currentState = upperStep;
-        Serial.println("Leaving Plinko");
-        setDisplayText(String(playerScore));
+        leavingPlinko = true;
       }
       if (exitHole_right_sensorValue < exitHole_right_threshold) {
         playerScore += exitHole_right_pointValue;
+        leavingPlinko = true;
+      }
+      if (leavingPlinko) {
         Serial.println(playerScore);
         currentState = upperStep;
         Serial.println("Leaving Plinko");
-        setDisplayText(String(playerScore));
+        start_time = millis();
       }
-      // Serial.print(exitHole_detected);
-      // Serial.print("        ");
-      // if (exitHole_detected == true){
-      //   //currentState = upperStep;
-      //   Serial.println("Leaving Plinko");
-      // }
-
-      //displaySmartTextBottom(static_cast<String>(playerScore));  // if not in welcome - display the score
-      
       break;
-      }
+    }
 
 
   // Upper step section
@@ -419,67 +378,36 @@ void loop() {
       setDisplayText(String(playerScore));
       transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
       if (transitionHole_sensorValue < transitionHole_sensor_threshold) {
-        Serial.println(transitionHole_sensorValue);
-        if (ballEntered) {
-          Serial.println(ballEntered);
-            currentState = reveal;
-            Serial.println("Leaving Upper Step");
-        } else {
-          Serial.println(ballEntered);
-            ballEntered = true;
-            delay(1000);
-        }
-    }
-      
-    //   Serial.print(handDetection_count);
-    //   Serial.print("          ");
-    //   Serial.println(transitionHole_sensorValue);
-      
-      // when the light sensors detect something twice, then go to reveal state
-    //   if (handDetection_count >= 2){
-    //     currentState = reveal;
-    //     Serial.println("Leaving Upper Step");
-    //   }
-    setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
-    break;
+        delay(2000);
+        currentState = reveal;
+        Serial.println("Leaving Upper Step");
+      }
+      break;
     }
 
 
   // Reveal State
     case reveal:{
       // move servo out and begin moving motor down
+      setDisplayText(String(playerScore));  // if not in welcome - display the score
       if (motorMoving == false){
-      transitionHole_servo.write(transitionHole_open);
+        transitionHole_servo.write(transitionHole_open);
+        homeFinalMotor();
+        setDisplayText("!!");  // something happened display something fun
 
-      digitalWrite(finalHole_motor_enable, 1);
-      digitalWrite(finalHole_motor_down_input, 1);
-      digitalWrite(finalHole_motor_up_input, 0);
-      delay(7300);
-      digitalWrite(finalHole_motor_enable, 0);
-      setDisplayText("!!");  // something happened display something fun
-      delay(1000);
-
-      motorStartTime = millis();
-      motorMoving = true;
-      
-      // delay(7300);
-      // digitalWrite(finalHole_motor_enable, 0);
-      // delay(1000);
+        motorMoving = true;
+        motorStartTime = millis();
       }
 
-      if (motorMoving == true && (millis() - motorStartTime >= downTime)){
+      if (motorMoving == true && (millis() - motorStartTime >= downTime)) {
         // motor should be at bottom now, so turn off motor
         digitalWrite(finalHole_motor_enable, 0);
         digitalWrite(finalHole_motor_down_input, 0);
 
       // exit state to lower step phase
-      currentState = lowerStep;
-      Serial.println("Leaving Reveal Step");
-      setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
-        motorMoving = false;
-
         currentState = lowerStep;
         Serial.println("Leaving Reveal Step");
+        motorMoving = false;
 
         // play zelda discover treasure theme
 
@@ -494,91 +422,85 @@ void loop() {
   // Lower State
     case lowerStep:{
       // Ball detection and final score assignment
-      setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
+      setDisplayText(String(playerScore));  // if not in welcome - display the score
       finalHole_sensorValue = analogRead(finalHole_sensorPin);
       if (finalHole_sensorValue < finalHole_sensor_threshold && motorMoving == false && waiting == false) {
+        end_time = millis() - start_time;
+        playerScore += end_time*time_score_mult;
+
         // do nothing until timer hits specified number
         waitStartTime = millis();
         waiting = true;
+        currentState = reset_system;
+      }
+      break;
+    }
 
+    // Lower Step and reset system
+    case reset_system:{
+      setDisplayText(String(playerScore));  // if not in welcome - display the score
       // motor move up after wait timer expires
       if (waiting == true && (millis() - waitStartTime >= waitTime)){
-        digitalWrite(finalHole_motor_enable, 1); // turns motor on
-        digitalWrite(finalHole_motor_down_input, 0);
-        digitalWrite(finalHole_motor_up_input, 1);
+        homeFinalMotor();
 
         motorStartTime = millis();
         motorMoving = true;
         waiting = false;
-
       }
-      
+
       // motor stops moving after move timer expires
       if (motorMoving == true && (millis() - motorStartTime >= upTime)){
           digitalWrite(finalHole_motor_enable, 0);
           digitalWrite(finalHole_motor_up_input, 0);
+          transitionHole_servo.write(transitionHole_closed);
 
           motorMoving = false;
-          currentState = plinko;
+          currentState = welcome;
       }
-        
-      }
-    //   finalHole_max = infraredSensor_detection(finalHole_sensorValue, finalHole_sensor_threshold, finalHole_max, finalHole_function);
-
-      if (startTimer == true){
-        reset_time = millis() - startTime;
-        
-      }
-      setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
-      break;
-    }
-    
-
-  // Servo Reset
-    case reset_transition:{
-      setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
-    
-      break;
-    }
-  // return servo to initial position
-  if (reset_time >= 30) {
-    // After 30 seconds has passed, close servo and end detectedHand state
-    transitionHole_servo.write(transitionHole_closed);
-    detectedHand = false;
-  }
-
-  // Lower Step and reset system
-    case reset_system:{
-    // restart system, move motor up, 
-    //moveMotor(true);
-
-    // End
-      setDisplayText(static_cast<String>(playerScore));  // if not in welcome - display the score
+      // End
       break;
     }
   }
 }
 
 // Functions 
-// uint16_t infraredSensor_detection(uint16_t threshold){
-//   // Checks if sensorValue falls below ir detection threshold
-//   if (sensorValue < threshold){
-//     // if detection threshold is met, then continuously update max if max is less than current read value
-//     if (sensorValue > max){
-//       return sensorValue;
-//     }else{
-//       // if detection threshold is not met, then return what was passed in
-//       return max;
-//     }
-//   }
-//   else if ((sensorValue > threshold) && (max > 0)){
-//     // if detection threshold is reached again, then update points and reset max to zero
-//     pointsFunction(max);
-//     return 0;
-//   }
-//   // if no detection, return keep max the same
-//   return max;
-// }
+void homeFinalMotor() {
+  // if the sensor is broken, ie. the platform and/or rack is blocking sensor, then move the rack down
+  finalHole_sensorValue = analogRead(finalHole_sensorPin);
+  if (finalHole_sensorValue < finalHole_sensor_threshold) {
+    digitalWrite(finalHole_motor_enable, 1);
+    digitalWrite(finalHole_motor_down_input, 1);
+    while (finalHole_sensorValue < finalHole_sensor_threshold){
+      finalHole_sensorValue = analogRead(finalHole_sensorPin);
+    }
+    // turn off motor
+    digitalWrite(finalHole_motor_enable, 0);
+    digitalWrite(finalHole_motor_down_input, 0);
+    homed = true;
+  } else {
+    digitalWrite(finalHole_motor_enable, 1);
+    digitalWrite(finalHole_motor_up_input, 1);
+    while (finalHole_sensorValue >= finalHole_sensor_threshold){
+      finalHole_sensorValue = analogRead(finalHole_sensorPin);
+    }
+    // turn off motor 
+    digitalWrite(finalHole_motor_enable, 0);
+    digitalWrite(finalHole_motor_up_input, 0);
+    homed = true;
+  }
+}
+
+uint16_t irSensorCalibration(uint16_t analog) {
+  uint16_t sensor_value = analogRead(analog);
+  uint16_t min_value = sensor_value;
+  for (int i = 0; i < 10000; i++) {
+    sensor_value = analogRead(analog);
+    if (sensor_value < min_value) {
+      min_value = sensor_value;
+    }
+  }
+  return min_value;
+}
 
 void impulseDetection(uint16_t threshold) {
     pointSensor_15_value = analogRead(pointValue_15_sensorPin);
@@ -637,15 +559,15 @@ void impactSensor_calculatePoints(uint16_t impulsePeak){
 //   }
 // }
 
-void transitionHole_function(uint16_t detectionPeak){
-  handDetection_count += 1;
-}
+// void transitionHole_function(uint16_t detectionPeak){
+//   handDetection_count += 1;
+// }
 
-void finalHole_function(uint16_t detectionPeak){
-  // if ran, then already in final hole, so give player points and begin reset timer
-  playerScore += finalHole_points;
-  startTimer = true;
-}
+// void finalHole_function(uint16_t detectionPeak){
+//   // if ran, then already in final hole, so give player points and begin reset timer
+//   playerScore += finalHole_points;
+//   startTimer = true;
+// }
 
 void moveMotor(uint8_t upDown){
   pinMode(finalHole_motor_enable, 1);
