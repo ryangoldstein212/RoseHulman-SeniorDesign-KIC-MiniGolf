@@ -60,20 +60,20 @@ uint16_t exitHole_right_sensorValue;
 
 //Plinko IR detection 
 uint8_t point_tolerance = 25;
-uint16_t pointValue_1_threshold = 830;
-uint16_t pointValue_2_threshold = 680;
-uint16_t pointValue_3_threshold = 600;
-uint16_t pointValue_4_threshold = 400;
-uint16_t pointValue_5_threshold = 310;
-uint8_t impactSensor_threshold = 20; // impact sensor values must be above this value for detection to be possible
+uint16_t pointValue_1_threshold = 820;
+uint16_t pointValue_2_threshold = 660;
+uint16_t pointValue_3_threshold = 580;
+uint16_t pointValue_4_threshold = 380;
+uint16_t pointValue_5_threshold = 300;
+uint8_t impactSensor_threshold = 200; // impact sensor values must be above this value for detection to be possible
 
 uint16_t maxImpulse_15 = 0;
 uint16_t maxImpulse_610 = 0;
 
 uint8_t exitHole_sensor_tolerance = 7;
-uint8_t exitHole_left_threshold = 10;
-uint8_t exitHole_middle_threshold = 20;
-uint8_t exitHole_right_threshold = 30;
+uint8_t exitHole_left_threshold = 50;
+uint8_t exitHole_middle_threshold = 50;
+uint8_t exitHole_right_threshold = 50;
 uint8_t lightSensor_tolerance = 150; // light sensor values must be below this value for detection to be possible
 bool exitHole_detected = false;
 
@@ -86,14 +86,14 @@ uint16_t transitionHole_sensorValue;
 uint16_t transitionHole_max = 0;
 
 // Transition Hole IR detection
-uint16_t transitionHole_sensor_threshold = 825;
+uint16_t transitionHole_sensor_threshold = 300;
 uint16_t transitionHole_points = 100;
 
 // Final Hole Read Value initialization
 uint16_t finalHole_sensorValue;
 
 // Final Hole IR detection
-uint16_t finalHole_sensor_threshold = 825;
+uint16_t finalHole_sensor_threshold = 300;
 uint16_t finalHole_max = 0;
 uint16_t finalHole_points = 300;
 
@@ -101,14 +101,14 @@ uint16_t finalHole_points = 300;
 
 
 //Point assignments
-uint16_t pointValue_1 = 10;
-uint16_t pointValue_2 = 20;
-uint16_t pointValue_3 = 30;
-uint16_t pointValue_4 = 40;
-uint16_t pointValue_5 = 50;
-uint16_t exitHole_left_pointValue = 50;
-uint16_t exitHole_middle_pointValue = 100;
-uint16_t exitHole_right_pointValue = 50;
+uint16_t pointValue_1 = 127;
+uint16_t pointValue_2 = 182;
+uint16_t pointValue_3 = 209;
+uint16_t pointValue_4 = 48;
+uint16_t pointValue_5 = 95;
+uint16_t exitHole_left_pointValue = 300;
+uint16_t exitHole_middle_pointValue = 500;
+uint16_t exitHole_right_pointValue = 400;
 
 // Transition Hole Globals
 Servo transitionHole_servo; // servo control object
@@ -267,48 +267,55 @@ void setup() {
   digitalWrite(finalHole_motor_enable, 0);
   digitalWrite(finalHole_motor_up_input,0);
   digitalWrite(finalHole_motor_down_input, 0);
-  // digitalWrite(finalHole_motor_enable, 1);
-  // digitalWrite(finalHole_motor_up_input,0);
-  // digitalWrite(finalHole_motor_down_input, 1);
-  // delay(5000);
-  // digitalWrite(finalHole_motor_enable, 0);
-  // digitalWrite(finalHole_motor_down_input, 0);
+  digitalWrite(finalHole_motor_enable, 1);
+  digitalWrite(finalHole_motor_up_input,0);
+  digitalWrite(finalHole_motor_down_input, 1);
+  delay(5000);
+  digitalWrite(finalHole_motor_enable, 0);
+  digitalWrite(finalHole_motor_down_input, 0);
 
   // Threshold caliblration
-  exitHole_left_threshold = irSensorCalibration(exitHole_left_sensorPin) - 50;
-  exitHole_right_threshold = irSensorCalibration(exitHole_right_sensorPin) - 50;
-  exitHole_middle_threshold = irSensorCalibration(exitHole_middle_sensorPin) - 50;
+  // exitHole_left_threshold = irSensorCalibration(exitHole_left_sensorPin) - 50;
+  // exitHole_right_threshold = irSensorCalibration(exitHole_right_sensorPin) - 50;
+  // exitHole_middle_threshold = irSensorCalibration(exitHole_middle_sensorPin) - 50;
   // Serial.print("Left threshold: ");
   // Serial.println(exitHole_left_threshold);
   // Serial.print("Middle threshold: ");
   // Serial.println(exitHole_middle_threshold);
   // Serial.print("Right threshold: ");
   // Serial.println(exitHole_right_threshold);
-  transitionHole_sensor_threshold = irSensorCalibration(transitionHole_sensorPin) - 100;
+  // transitionHole_sensor_threshold = irSensorCalibration(transitionHole_sensorPin) - 200;
   // Serial.print("Starting value: ");
   // Serial.println(analogRead(finalHole_sensorPin));
-  if (analogRead(finalHole_sensorPin) < 300) {
-    Serial.print(analogRead(finalHole_sensorPin));
-    digitalWrite(finalHole_motor_enable, 1);
-    digitalWrite(finalHole_motor_down_input, 1);
-    delay(5000);
-    digitalWrite(finalHole_motor_enable, 0);
-    digitalWrite(finalHole_motor_down_input, 0);
-  }
-  finalHole_sensor_threshold = irSensorCalibration(finalHole_sensorPin) - 200;
 
+  // if (analogRead(finalHole_sensorPin) < 300) {
+  //   Serial.print(analogRead(finalHole_sensorPin));
+  //   digitalWrite(finalHole_motor_enable, 1);
+  //   digitalWrite(finalHole_motor_down_input, 1);
+  //   delay(5000);
+  //   digitalWrite(finalHole_motor_enable, 0);
+  //   digitalWrite(finalHole_motor_down_input, 0);
+  // }
+  // finalHole_sensor_threshold = irSensorCalibration(finalHole_sensorPin) - 200;
+
+  // while (true) {
+  //   finalHole_sensorValue = analogRead(finalHole_sensorPin);
+  //   Serial.println(finalHole_sensorValue);
+  // }
+
+  
   Serial.println(exitHole_left_threshold);
   Serial.println(exitHole_right_threshold);
   Serial.println(exitHole_middle_threshold);
   Serial.println(transitionHole_sensor_threshold);
-  Serial.print("Final hole threshold: ");
-  Serial.println(finalHole_sensor_threshold);
+  // Serial.print("Final hole threshold: ");
+  // Serial.println(finalHole_sensor_threshold);
 
   // Lower step motor homing sequence
-  finalHole_sensorValue = analogRead(finalHole_sensorPin);
+  // finalHole_sensorValue = analogRead(finalHole_sensorPin);
 
   // if the sensor is broken, ie. the platform and/or rack is blocking sensor, then move the rack down
-  homeFinalMotor();
+  // homeFinalMotor();
 
   // once rack is in standard position, then move rack up
   if (homed == true){
@@ -355,7 +362,7 @@ void loop() {
       bool leavingPlinko = false;
       bool actuallyBroken = true;
       //displaySmartTextBottom("Start->");  // if not in welcome - display the score
-      setDisplayText("Start->");
+      setDisplayText("GO ->");
       // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
       pointSensor_15_value = analogRead(pointValue_15_sensorPin);
       pointSensor_610_value = analogRead(pointValue_610_sensorPin);
@@ -363,6 +370,9 @@ void loop() {
       exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
       exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
 
+      // exitHole_left_sensorValue = analogRead(exitHole_left_sensorPin);
+      // exitHole_middle_sensorValue = analogRead(exitHole_middle_sensorPin);
+      // exitHole_right_sensorValue = analogRead(exitHole_right_sensorPin);
       // Serial.print(exitHole_left_sensorValue);
       // Serial.print("       ");
       // Serial.print(exitHole_middle_sensorValue);
@@ -435,6 +445,11 @@ void loop() {
       transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
       if (transitionHole_sensorValue < transitionHole_sensor_threshold) {
         playerScore += transitionHole_points;
+        motorMoving = true;
+        motorStartTime = millis();
+        digitalWrite(finalHole_motor_enable, 1);
+        digitalWrite(finalHole_motor_down_input, 1);
+        digitalWrite(finalHole_motor_up_input, 0);
         delay(2000);
         currentState = reveal;
         Serial.println("Leaving Upper Step");
@@ -451,12 +466,6 @@ void loop() {
         transitionHole_servo.write(transitionHole_open);
         homeFinalMotor();
         setDisplayText("!!");  // something happened display something fun
-
-        motorMoving = true;
-        motorStartTime = millis();
-        digitalWrite(finalHole_motor_enable, 1);
-        digitalWrite(finalHole_motor_down_input, 1);
-        digitalWrite(finalHole_motor_up_input, 0);
       }
 
       if (motorMoving == true && (millis() - motorStartTime >= downTime)) {
