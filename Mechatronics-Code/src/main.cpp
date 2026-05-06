@@ -141,6 +141,7 @@ state currentState = welcome;
 
 // counters and timers
 uint16_t playerScore = 0;
+uint16_t plinkoPoints = 0;
 uint32_t startTime = 0;
 uint32_t detectedHand_time = 0;
 uint32_t reset_time; 
@@ -445,11 +446,6 @@ void loop() {
       transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
       if (transitionHole_sensorValue < transitionHole_sensor_threshold) {
         playerScore += transitionHole_points;
-        motorMoving = true;
-        motorStartTime = millis();
-        digitalWrite(finalHole_motor_enable, 1);
-        digitalWrite(finalHole_motor_down_input, 1);
-        digitalWrite(finalHole_motor_up_input, 0);
         delay(2000);
         currentState = reveal;
         Serial.println("Leaving Upper Step");
@@ -466,6 +462,12 @@ void loop() {
         transitionHole_servo.write(transitionHole_open);
         homeFinalMotor();
         setDisplayText("!!");  // something happened display something fun
+
+        motorMoving = true;
+        motorStartTime = millis();
+        digitalWrite(finalHole_motor_enable, 1);
+        digitalWrite(finalHole_motor_down_input, 1);
+        digitalWrite(finalHole_motor_up_input, 0);
       }
 
       if (motorMoving == true && (millis() - motorStartTime >= downTime)) {
@@ -558,6 +560,7 @@ void loop() {
 
 void resetGameState() {
   playerScore = 0;
+  plinkoPoints = 0;
   motorMoving = false;
   waiting = false;
   motorStartTime = 0;
@@ -610,18 +613,22 @@ void impulseDetection(uint16_t threshold) {
     pointSensor_15_value = analogRead(pointValue_15_sensorPin);
     pointSensor_610_value = analogRead(pointValue_610_sensorPin);
     uint16_t maxValue = 0;
-    while (pointSensor_15_value > threshold) {
+    if (pointSensor_15_value > threshold) {
+      for (int i = 0; i < 1000; i++) {
         if (pointSensor_15_value > maxValue) {
             maxValue = pointSensor_15_value;
         }
-        pointSensor_15_value = analogRead(pointValue_15_sensorPin);
+      }
+      pointSensor_15_value = analogRead(pointValue_15_sensorPin);
     }
 
-    while (pointSensor_610_value > threshold) {
+    if (pointSensor_610_value > threshold) {
+      for (int i = 0; i < 1000; i++) {
         if (pointSensor_610_value > maxValue) {
             maxValue = pointSensor_610_value;
         }
-        pointSensor_610_value = analogRead(pointValue_610_sensorPin);
+      }
+      pointSensor_610_value = analogRead(pointValue_610_sensorPin);
     }
 
     if (maxValue > 0) {
@@ -632,19 +639,19 @@ void impulseDetection(uint16_t threshold) {
 void impactSensor_calculatePoints(uint16_t impulsePeak){
   // Check from highest threshold to lowest. 
   if (impulsePeak >= pointValue_1_threshold){          
-    playerScore += pointValue_1;
+    plinkoPoints += pointValue_1;
   } 
   else if (impulsePeak >= pointValue_2_threshold){     
-    playerScore += pointValue_2;
+    plinkoPoints += pointValue_2;
   } 
   else if (impulsePeak >= pointValue_3_threshold){     
-    playerScore += pointValue_3;
+    plinkoPoints += pointValue_3;
   } 
   else if (impulsePeak >= pointValue_4_threshold){     
-    playerScore += pointValue_4;
+    plinkoPoints += pointValue_4;
   } 
   else if (impulsePeak >= pointValue_5_threshold){     
-    playerScore += pointValue_5;
+    plinkoPoints += pointValue_5;
   } 
   Serial.println(playerScore);
 }
