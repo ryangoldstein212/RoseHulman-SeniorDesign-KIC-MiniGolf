@@ -57,13 +57,15 @@ uint16_t pointSensor_610_value;
 uint16_t exitHole_left_sensorValue;
 uint16_t exitHole_middle_sensorValue;
 uint16_t exitHole_right_sensorValue;
+int pointSensor15Flag = 0;
+int pointSensor610Flag = 0;
 
 //Plinko IR detection 
-uint8_t point_tolerance = 25;
-uint16_t pointValue_1_threshold = 820;
-uint16_t pointValue_2_threshold = 660;
-uint16_t pointValue_3_threshold = 580;
-uint16_t pointValue_4_threshold = 380;
+uint8_t point_tolerance = 30;
+uint16_t pointValue_1_threshold = 825;
+uint16_t pointValue_2_threshold = 665;
+uint16_t pointValue_3_threshold = 590;
+uint16_t pointValue_4_threshold = 390;
 uint16_t pointValue_5_threshold = 300;
 uint8_t impactSensor_threshold = 200; // impact sensor values must be above this value for detection to be possible
 
@@ -86,14 +88,14 @@ uint16_t transitionHole_sensorValue;
 uint16_t transitionHole_max = 0;
 
 // Transition Hole IR detection
-uint16_t transitionHole_sensor_threshold = 300;
+uint16_t transitionHole_sensor_threshold = 700;
 uint16_t transitionHole_points = 100;
 
 // Final Hole Read Value initialization
 uint16_t finalHole_sensorValue;
 
 // Final Hole IR detection
-uint16_t finalHole_sensor_threshold = 300;
+uint16_t finalHole_sensor_threshold = 200;
 uint16_t finalHole_max = 0;
 uint16_t finalHole_points = 300;
 
@@ -101,11 +103,11 @@ uint16_t finalHole_points = 300;
 
 
 //Point assignments
-uint16_t pointValue_1 = 127;
-uint16_t pointValue_2 = 182;
-uint16_t pointValue_3 = 209;
-uint16_t pointValue_4 = 48;
-uint16_t pointValue_5 = 95;
+uint16_t pointValue_1 = 227;
+uint16_t pointValue_2 = 282;
+uint16_t pointValue_3 = 309;
+uint16_t pointValue_4 = 148;
+uint16_t pointValue_5 = 195;
 uint16_t exitHole_left_pointValue = 300;
 uint16_t exitHole_middle_pointValue = 500;
 uint16_t exitHole_right_pointValue = 400;
@@ -134,7 +136,7 @@ uint16_t reset_motor_time = 7400;
 
 // System State switches
 enum state {
-  welcome, plinko, upperStep, reveal, lowerStep, reset_system
+  test, welcome, plinko, upperStep, reveal, lowerStep, reset_system
 };
 
 state currentState = welcome;
@@ -151,7 +153,7 @@ uint32_t end_time;
 // Function Declarations
 void sensorTesting(uint16_t impulse, uint16_t target, uint16_t threshold);
 void impulseDetection(uint16_t threshold);
-void impactSensor_calculatePoints(uint16_t impulsePeak);
+void impactSensor_calculatePoints(uint16_t impulsePeak, bool is15);
 // uint16_t infraredSensor_detection(uint16_t threshold);
 void exitHole_pointAssignment(uint16_t detectionPeak);
 void transitionHole_function(uint16_t detectionPeak);
@@ -267,13 +269,13 @@ void setup() {
   pinMode(finalHole_motor_enable, OUTPUT);
   digitalWrite(finalHole_motor_enable, 0);
   digitalWrite(finalHole_motor_up_input,0);
-  digitalWrite(finalHole_motor_down_input, 0);
-  digitalWrite(finalHole_motor_enable, 1);
-  digitalWrite(finalHole_motor_up_input,0);
-  digitalWrite(finalHole_motor_down_input, 1);
-  delay(5000);
-  digitalWrite(finalHole_motor_enable, 0);
-  digitalWrite(finalHole_motor_down_input, 0);
+  // digitalWrite(finalHole_motor_down_input, a);
+  // digitalWrite(finalHole_motor_enable, 1);
+  // digitalWrite(finalHole_motor_up_input,0);
+  // digitalWrite(finalHole_motor_down_input, 1);
+  // delay(3000);
+  // digitalWrite(finalHole_motor_enable, 0);
+  // digitalWrite(finalHole_motor_down_input, 0);
 
   // Threshold caliblration
   // exitHole_left_threshold = irSensorCalibration(exitHole_left_sensorPin) - 50;
@@ -305,10 +307,10 @@ void setup() {
   // }
 
   
-  Serial.println(exitHole_left_threshold);
-  Serial.println(exitHole_right_threshold);
-  Serial.println(exitHole_middle_threshold);
-  Serial.println(transitionHole_sensor_threshold);
+  // Serial.println(exitHole_left_threshold);
+  // Serial.println(exitHole_right_threshold);
+  // Serial.println(exitHole_middle_threshold);
+  // Serial.println(transitionHole_sensor_threshold);
   // Serial.print("Final hole threshold: ");
   // Serial.println(finalHole_sensor_threshold);
 
@@ -320,7 +322,7 @@ void setup() {
 
   // once rack is in standard position, then move rack up
   if (homed == true){
-    Serial.println("moving after homing");
+    // Serial.println("moving after homing");
     digitalWrite(finalHole_motor_enable, 1);
     digitalWrite(finalHole_motor_down_input, 0);
     digitalWrite(finalHole_motor_up_input, 1);
@@ -336,13 +338,31 @@ void setup() {
   mx.begin();
   mx.control(MD_MAX72XX::INTENSITY, 5);
   mx.clear();
-  Serial.println("Setup complete");
+  // Serial.println("Setup complete");
 }
 
 
 void loop() {
   updateDisplayAnimation();
   switch (currentState) {
+    case test: {
+      // transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
+      // Serial.println(transitionHole_sensorValue);
+        // transitionHole_servo.write(transitionHole_open);
+        // delay(1000);
+        // transitionHole_servo.write(transitionHole_closed);
+        // delay(1000);
+      // if (transitionHole_sensorValue < transitionHole_sensor_threshold) {
+      //   Serial.println("Here");
+      //   transitionHole_servo.write(transitionHole_open);
+      //   delay(1000);
+      //   transitionHole_servo.write(transitionHole_closed);
+      // }
+      // Serial.println(analogRead(transitionHole_sensorPin));
+      // Serial.print("      ");
+      // Serial.println(analogRead(pointValue_610_sensorPin));
+      break;
+    }
     // Welcome State
     case welcome:{
       // goes into plinko state when transition hole ir sensor detects a hand. LED display 
@@ -351,7 +371,7 @@ void loop() {
       transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
       if (transitionHole_sensorValue < transitionHole_sensor_threshold) {
         currentState = plinko;
-        Serial.println("Game Started - Place ball at Plinko");
+        // Serial.println("Game Started - Place ball at Plinko");
       }
       break;
     }
@@ -363,6 +383,7 @@ void loop() {
       bool leavingPlinko = false;
       bool actuallyBroken = true;
       //displaySmartTextBottom("Start->");  // if not in welcome - display the score
+      //setDisplayText(String(playerScore));
       setDisplayText("GO ->");
       // read sensors continuously until a hit on contact sensors is detected, then figure out what voltage reading is and add to player score
       pointSensor_15_value = analogRead(pointValue_15_sensorPin);
@@ -384,9 +405,11 @@ void loop() {
       if (pointSensor_15_value > impactSensor_threshold) {
         impulseDetection(impactSensor_threshold);
         
+        
       }
       if (pointSensor_610_value > impactSensor_threshold) {
         impulseDetection(impactSensor_threshold);
+        
       }
       // Exit hole light sensor impulse detection
       if (exitHole_left_sensorValue <= exitHole_left_threshold) {
@@ -432,7 +455,7 @@ void loop() {
       }
       if (leavingPlinko) {
         currentState = upperStep;
-        Serial.println("Leaving Plinko");
+        // Serial.println("Leaving Plinko");
         start_time = millis();
       }
       break;
@@ -446,9 +469,9 @@ void loop() {
       transitionHole_sensorValue = analogRead(transitionHole_sensorPin);
       if (transitionHole_sensorValue < transitionHole_sensor_threshold) {
         playerScore += transitionHole_points;
-        delay(2000);
+        delay(1500);
         currentState = reveal;
-        Serial.println("Leaving Upper Step");
+        // Serial.println("Leaving Upper Step");
       }
       break;
     }
@@ -457,34 +480,36 @@ void loop() {
   // Reveal State
     case reveal:{
       // move servo out and begin moving motor down
-      setDisplayText(String(playerScore));  // if not in welcome - display the score
-      if (motorMoving == false){
+      setDisplayText("!!");  // if not in welcome - display the score
+      if (!motorMoving){
         transitionHole_servo.write(transitionHole_open);
-        homeFinalMotor();
-        setDisplayText("!!");  // something happened display something fun
-
-        motorMoving = true;
-        motorStartTime = millis();
         digitalWrite(finalHole_motor_enable, 1);
         digitalWrite(finalHole_motor_down_input, 1);
         digitalWrite(finalHole_motor_up_input, 0);
+        delay(5000);
+        // homeFinalMotor();
+        motorMoving = true;
+        motorStartTime = millis();
       }
 
-      if (motorMoving == true && (millis() - motorStartTime >= downTime)) {
+      if (motorMoving && (millis() - motorStartTime >= downTime)) {
         // motor should be at bottom now, so turn off motor
         digitalWrite(finalHole_motor_enable, 0);
         digitalWrite(finalHole_motor_down_input, 0);
 
       // exit state to lower step phase
         currentState = lowerStep;
-        delay(2000);
-        Serial.println("Leaving Reveal Step");
+        // Serial.println("Leaving Reveal Step");
         motorMoving = false;
 
         // play zelda discover treasure theme
 
         // exit state to lower step phase
       
+      } else if (motorMoving) {
+        digitalWrite(finalHole_motor_enable, 1);
+        digitalWrite(finalHole_motor_down_input, 1);
+        digitalWrite(finalHole_motor_up_input, 0);
       }
       break;
 
@@ -508,12 +533,12 @@ void loop() {
           end_time = millis() - start_time;
           playerScore += (time_score_mult/end_time);
           playerScore += finalHole_points;
-          Serial.print("Mult: ");
-          Serial.println(time_score_mult);
-          Serial.print("End time: ");
-          Serial.println(end_time);
-          Serial.print("End score: ");
-          Serial.println(time_score_mult/end_time);
+          // Serial.print("Mult: ");
+          // Serial.println(time_score_mult);
+          // Serial.print("End time: ");
+          // Serial.println(end_time);
+          // Serial.print("End score: ");
+          // Serial.println(time_score_mult/end_time);
 
           // do nothing until timer hits specified number
           waitStartTime = millis();
@@ -549,7 +574,7 @@ void loop() {
           motorMoving = false;
           resetGameState();
           delay(2000);
-          Serial.println("Starting new game");
+          // Serial.println("Starting new game");
           currentState = welcome;
       }
       // End
@@ -568,6 +593,8 @@ void resetGameState() {
   start_time = 0;
   end_time = 0;
   exitHole_detected = false;
+  pointSensor15Flag = 0;
+  pointSensor610Flag = 0;
 }
 
 // Functions 
@@ -578,6 +605,8 @@ void homeFinalMotor() {
     digitalWrite(finalHole_motor_enable, 1);
     digitalWrite(finalHole_motor_down_input, 1);
     while (finalHole_sensorValue < finalHole_sensor_threshold){
+      Serial.print("While values: ");
+      Serial.println(finalHole_sensorValue);
       finalHole_sensorValue = analogRead(finalHole_sensorPin);
     }
     // turn off motor
@@ -610,20 +639,21 @@ uint16_t irSensorCalibration(uint16_t analog) {
 }
 
 void impulseDetection(uint16_t threshold) {
+    bool is15 = false;
     pointSensor_15_value = analogRead(pointValue_15_sensorPin);
     pointSensor_610_value = analogRead(pointValue_610_sensorPin);
     uint16_t maxValue = 0;
     if (pointSensor_15_value > threshold) {
-      for (int i = 0; i < 1000; i++) {
+      is15 = true;
+      for (int i = 0; i < 10000; i++) {
         if (pointSensor_15_value > maxValue) {
             maxValue = pointSensor_15_value;
         }
       }
       pointSensor_15_value = analogRead(pointValue_15_sensorPin);
-    }
-
-    if (pointSensor_610_value > threshold) {
-      for (int i = 0; i < 1000; i++) {
+    } else if (pointSensor_610_value > threshold) {
+      is15 = false;
+      for (int i = 0; i < 10000; i++) {
         if (pointSensor_610_value > maxValue) {
             maxValue = pointSensor_610_value;
         }
@@ -632,28 +662,88 @@ void impulseDetection(uint16_t threshold) {
     }
 
     if (maxValue > 0) {
-        impactSensor_calculatePoints(maxValue);
+        impactSensor_calculatePoints(maxValue, is15);
     }
 }
 
-void impactSensor_calculatePoints(uint16_t impulsePeak){
+void impactSensor_calculatePoints(uint16_t impulsePeak, bool is15){
   // Check from highest threshold to lowest. 
-  if (impulsePeak >= pointValue_1_threshold){          
-    plinkoPoints += pointValue_1;
+  if (impulsePeak >= pointValue_1_threshold - point_tolerance && impulsePeak <= pointValue_1_threshold + point_tolerance){   
+    if (is15 && (pointSensor15Flag &= 0x01)) {
+      pointSensor15Flag |= 0x01;
+      return;
+    } else if (is15) {
+      playerScore += pointValue_1;
+    }
+
+    if (!is15 && (pointSensor610Flag &= 0x01)) {
+      pointSensor610Flag |= 0x01;
+      return;
+    } else if (!is15) {
+      playerScore += pointValue_1;
+    }
   } 
-  else if (impulsePeak >= pointValue_2_threshold){     
-    plinkoPoints += pointValue_2;
+  if (impulsePeak >= pointValue_2_threshold - point_tolerance && impulsePeak <= pointValue_2_threshold + point_tolerance){     
+    if (is15 && (pointSensor15Flag &= 0x02)) {
+      pointSensor15Flag |= 0x02;
+      return;
+    } else if (is15) {
+      playerScore += pointValue_2;
+    }
+
+    if (!is15 && (pointSensor610Flag &= 0x02)) {
+      pointSensor610Flag |= 0x02;
+      return;
+    } else if (!is15) {
+      playerScore += pointValue_2;
+    }
   } 
-  else if (impulsePeak >= pointValue_3_threshold){     
-    plinkoPoints += pointValue_3;
+  if (impulsePeak >= pointValue_3_threshold - point_tolerance && impulsePeak <= pointValue_3_threshold + point_tolerance){     
+    if (is15 && (pointSensor15Flag &= 0x04)) {
+      pointSensor15Flag |= 0x04;
+      return;
+    } else if (is15) {
+      playerScore += pointValue_3;
+    }
+
+    if (!is15 && (pointSensor610Flag &= 0x04)) {
+      pointSensor610Flag |= 0x04;
+      return;
+    } else if (!is15) {
+      playerScore += pointValue_3;
+    }
   } 
-  else if (impulsePeak >= pointValue_4_threshold){     
-    plinkoPoints += pointValue_4;
+  if (impulsePeak >= pointValue_4_threshold - point_tolerance && impulsePeak <= pointValue_4_threshold + point_tolerance){     
+    if (is15 && (pointSensor15Flag &= 0x08)) {
+      pointSensor15Flag |= 0x08;
+      return;
+    } else if (is15) {
+      playerScore += pointValue_4;
+    }
+
+    if (!is15 && (pointSensor610Flag &= 0x08)) {
+      pointSensor610Flag |= 0x08;
+      return;
+    } else if (!is15) {
+      playerScore += pointValue_4;
+    }
   } 
-  else if (impulsePeak >= pointValue_5_threshold){     
-    plinkoPoints += pointValue_5;
+  if (impulsePeak >= pointValue_5_threshold - point_tolerance && impulsePeak <= pointValue_5_threshold + point_tolerance){     
+    if (is15 && (pointSensor15Flag &= 0x10)) {
+      pointSensor15Flag |= 0x10;
+      return;
+    } else if (is15) {
+      playerScore += pointValue_5;
+    }
+
+    if (!is15 && (pointSensor610Flag &= 0x10)) {
+      pointSensor610Flag |= 0x10;
+      return;
+    } else if (!is15) {
+      playerScore += pointValue_5;
+    }
   } 
-  Serial.println(playerScore);
+  // Serial.println(playerScore);
 }
 
 // void exitHole_pointAssignment(uint16_t detectionPeak){
