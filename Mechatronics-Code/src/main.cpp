@@ -22,7 +22,7 @@ bool FLIP_BOTTOM_Y = true;
 int SCROLL_DELAY = 40;
 
 // text to display when LED is not used as a score board
-String ScoreBoardText = "Rose Show";
+String ScoreBoardText = "";
 
 // Non-blocking display state
 String displayMessage = "";
@@ -61,13 +61,13 @@ int pointSensor15Flag = 0;
 int pointSensor610Flag = 0;
 
 //Plinko IR detection 
-uint8_t point_tolerance = 25;
-uint16_t pointValue_1_threshold = 830;
-uint16_t pointValue_2_threshold = 680;
-uint16_t pointValue_3_threshold = 600;
-uint16_t pointValue_4_threshold = 400;
-uint16_t pointValue_5_threshold = 310;
-uint8_t impactSensor_threshold = 20; // impact sensor values must be above this value for detection to be possible
+uint8_t point_tolerance = 40;
+uint16_t pointValue_1_threshold = 853;
+uint16_t pointValue_2_threshold = 711;
+uint16_t pointValue_3_threshold = 639;
+uint16_t pointValue_4_threshold = 435;
+uint16_t pointValue_5_threshold = 350;
+uint8_t impactSensor_threshold = 200; // impact sensor values must be above this value for detection to be possible
 
 uint16_t maxImpulse_15 = 0;
 uint16_t maxImpulse_610 = 0;
@@ -121,8 +121,8 @@ bool detectedHand = false;
 
 // Final Hole Globals
 bool homed = false;
-uint16_t upTime = 4600; // time motor moves up from the bottom
-uint16_t downTime = 10000; // time motor moves down from the top
+uint16_t upTime = 4300; // time motor moves up from the bottom
+uint16_t downTime = 7100; // time motor moves down from the top
 bool motorMoving = false; // flag for when the motor moves or not
 uint32_t motorStartTime = 0;
 uint32_t time_score_mult = 20000000;
@@ -131,7 +131,7 @@ uint32_t time_score_mult = 20000000;
 bool waiting = false; // flag for when to wait before activating the motor during reset
 uint32_t waitStartTime = 0;
 uint16_t waitTime = 7000;
-uint16_t reset_motor_time = 7400;
+uint16_t reset_motor_time = 6750;
 
 
 // System State switches
@@ -139,7 +139,7 @@ enum state {
   calibration, test, welcome, plinko, upperStep, reveal, lowerStep, reset_system
 };
 
-state currentState = calibration;
+state currentState = welcome;
 
 // counters and timers
 uint16_t playerScore = 0;
@@ -156,7 +156,7 @@ uint32_t force_reset_time = 300000;
 
 // Function Declarations
 void sensorTesting(uint16_t impulse, uint16_t target, uint16_t threshold);
-void impulseDetection(uint16_t threshold);
+bool impulseDetection(uint16_t threshold);
 void impactSensor_calculatePoints(uint16_t impulsePeak, bool is15);
 // uint16_t infraredSensor_detection(uint16_t threshold);
 void exitHole_pointAssignment(uint16_t detectionPeak);
@@ -263,6 +263,12 @@ void setup() {
   // Serial Monitor set up
   Serial.begin(9600);
 
+  // LED Set Up
+  mx.begin();
+  mx.control(MD_MAX72XX::INTENSITY, 5);
+  mx.clear();
+  setDisplayText("");
+
   // Servo set up and initialization
   transitionHole_servo.attach(servo_Pin);
   transitionHole_servo.write(transitionHole_closed);
@@ -297,22 +303,22 @@ void setup() {
   if (analogRead(finalHole_sensorPin) < 300) {
     digitalWrite(finalHole_motor_enable, 1);
     digitalWrite(finalHole_motor_down_input, 1);
-    delay(7000);
+    delay(6000);
     digitalWrite(finalHole_motor_enable, 0);
     digitalWrite(finalHole_motor_down_input, 0);
   }
   finalHole_sensor_threshold = irSensorCalibration(finalHole_sensorPin)*.5;
 
-  Serial.print("Left: ");
-  Serial.println(exitHole_left_threshold);
-  Serial.print("Right: ");
-  Serial.println(exitHole_right_threshold);
-  Serial.print("Middle: ");
-  Serial.println(exitHole_middle_threshold);
-  Serial.print("Transition: ");
-  Serial.println(transitionHole_sensor_threshold);
-  Serial.print("Final: ");
-  Serial.println(finalHole_sensor_threshold);
+  // Serial.print("Left: ");
+  // Serial.println(exitHole_left_threshold);
+  // Serial.print("Right: ");
+  // Serial.println(exitHole_right_threshold);
+  // Serial.print("Middle: ");
+  // Serial.println(exitHole_middle_threshold);
+  // Serial.print("Transition: ");
+  // Serial.println(transitionHole_sensor_threshold);
+  // Serial.print("Final: ");
+  // Serial.println(finalHole_sensor_threshold);
 
   // Lower step motor homing sequence
   finalHole_sensorValue = analogRead(finalHole_sensorPin);
@@ -334,10 +340,6 @@ void setup() {
     digitalWrite(finalHole_motor_up_input, 0);
   }
 
-  // LED Set Up
-  mx.begin();
-  mx.control(MD_MAX72XX::INTENSITY, 5);
-  mx.clear();
   Serial.println("Setup complete");
 }
 
@@ -527,12 +529,31 @@ void loop() {
     }
 
     case test: {
-      Serial.print("1-5: ");
-      Serial.print(analogRead(pointValue_15_sensorPin));
-      Serial.print("     ");
-      Serial.print("6-10: ");
-      Serial.println(analogRead(pointValue_610_sensorPin));
-      delay(10);
+      // Serial.print("1-5: ");
+      // Serial.print(analogRead(pointValue_15_sensorPin));
+      // Serial.print("     ");
+      // Serial.print("6-10: ");
+      // Serial.println(analogRead(pointValue_610_sensorPin));
+      // delay(10);
+
+      uint32_t lastImpactStart = 0;
+      uint32_t lastImpactDuration = 0;
+      uint16_t lastImpactPeak = 0;
+      uint16_t v = analogRead(pointValue_610_sensorPin);
+      if (v > impactSensor_threshold) {
+          uint32_t start = micros();
+          uint16_t peak = v;
+          while (analogRead(pointValue_610_sensorPin) > impactSensor_threshold) {
+              v = analogRead(pointValue_610_sensorPin);
+              if (v > peak) peak = v;
+          }
+          lastImpactDuration = micros() - start;
+          lastImpactPeak = peak;
+          Serial.print("Duration (us): ");
+          Serial.println(lastImpactDuration);
+          Serial.print("Peak: ");
+          Serial.println(lastImpactPeak);
+      }
     }
     case welcome:{
       // goes into plinko state when transition hole ir sensor detects a hand. LED display 
@@ -556,7 +577,7 @@ void loop() {
       bool actuallyBroken = true;
 
       //displaySmartTextBottom("Start->");  // if not in welcome - display the score
-      setDisplayText("Start->");
+      setDisplayText("Go ->");
       
       //if the system gets stuck for too long, force it through the state
       if (millis() - plinko_time >= force_reset_time) {
@@ -576,14 +597,6 @@ void loop() {
       // Serial.print("       ");
       // Serial.println(exitHole_right_sensorValue);
 
-      // Impact sensor impulse detection
-      // if (pointSensor_15_value > impactSensor_threshold) {
-      //   impulseDetection(impactSensor_threshold);
-        
-      // }
-      // if (pointSensor_610_value > impactSensor_threshold) {
-      //   impulseDetection(impactSensor_threshold);
-      // }
       // Exit hole light sensor impulse detection
       if (exitHole_left_sensorValue <= exitHole_left_threshold) {
         actuallyBroken = true;
@@ -626,11 +639,30 @@ void loop() {
           leavingPlinko = true;
         }
       }
+
       if (leavingPlinko) {
         currentState = upperStep;
         Serial.println("Leaving Plinko");
         upper_step_time = millis();
         start_time = millis();
+        break;
+      }
+
+      // Impact sensor impulse detection
+      if (pointSensor_15_value > impactSensor_threshold) {
+        leavingPlinko = impulseDetection(impactSensor_threshold);
+      }
+
+      if (pointSensor_610_value > impactSensor_threshold) {
+        leavingPlinko = impulseDetection(impactSensor_threshold);
+      }
+
+      if (leavingPlinko) {
+        currentState = upperStep;
+        Serial.println("Leaving Plinko");
+        upper_step_time = millis();
+        start_time = millis();
+        break;
       }
       break;
     }
@@ -663,12 +695,10 @@ void loop() {
   // Reveal State
     case reveal:{
       // move servo out and begin moving motor down
-      setDisplayText(String(playerScore));  // if not in welcome - display the score
+      setDisplayText("!!");  // something happened display something fun
 
       if (motorMoving == false){
         transitionHole_servo.write(transitionHole_open);
-        // homeFinalMotor();
-        setDisplayText("!!");  // something happened display something fun
 
         motorMoving = true;
         motorStartTime = millis();
@@ -678,6 +708,8 @@ void loop() {
       }
 
       if (motorMoving == true && (millis() - motorStartTime >= downTime)) {
+        setDisplayText(String(playerScore));  // if not in welcome - display the score
+        
         // motor should be at bottom now, so turn off motor
         digitalWrite(finalHole_motor_enable, 0);
         digitalWrite(finalHole_motor_down_input, 0);
@@ -824,108 +856,110 @@ uint16_t irSensorCalibration(uint16_t analog) {
   return min_value;
 }
 
-void impulseDetection(uint16_t threshold) {
+bool impulseDetection(uint16_t threshold) {
     bool is15 = false;
-    pointSensor_15_value = analogRead(pointValue_15_sensorPin);
-    pointSensor_610_value = analogRead(pointValue_610_sensorPin);
     uint16_t maxValue = 0;
-    if (pointSensor_15_value > threshold) {
-      is15 = true;
-      for (int i = 0; i < 10000; i++) {
-        if (pointSensor_15_value > maxValue) {
-            maxValue = pointSensor_15_value;
-        }
-      }
-      pointSensor_15_value = analogRead(pointValue_15_sensorPin);
-    } else if (pointSensor_610_value > threshold) {
-      is15 = false;
-      for (int i = 0; i < 10000; i++) {
-        if (pointSensor_610_value > maxValue) {
-            maxValue = pointSensor_610_value;
-        }
-      }
-      pointSensor_610_value = analogRead(pointValue_610_sensorPin);
+
+    uint16_t v15  = analogRead(pointValue_15_sensorPin);
+    uint16_t v610 = analogRead(pointValue_610_sensorPin);
+
+    if (v15 >= v610 && v15 > threshold) {
+        is15 = true;
+    } else if (v610 > threshold) {
+        is15 = false;
+    } else {
+        return false;
+    }
+
+    uint8_t sensorPin = is15 ? pointValue_15_sensorPin : pointValue_610_sensorPin;
+    uint32_t peakStart = micros();
+
+    while ((analogRead(sensorPin) > threshold) && (micros() - peakStart < 3000)) {
+        uint16_t sample = analogRead(sensorPin);
+        if (sample > maxValue) maxValue = sample;
     }
 
     if (maxValue > 0) {
         impactSensor_calculatePoints(maxValue, is15);
     }
+
+    return false;
 }
 
 void impactSensor_calculatePoints(uint16_t impulsePeak, bool is15){
   // Check from highest threshold to lowest. 
   if (impulsePeak >= pointValue_1_threshold - point_tolerance && impulsePeak <= pointValue_1_threshold + point_tolerance){   
-    if (is15 && (pointSensor15Flag &= 0x01)) {
-      pointSensor15Flag |= 0x01;
+    if (is15 && (pointSensor15Flag & 0x01)) {
       return;
     } else if (is15) {
+      pointSensor15Flag |= 0x01;
       playerScore += pointValue_1;
     }
 
-    if (!is15 && (pointSensor610Flag &= 0x01)) {
-      pointSensor610Flag |= 0x01;
+    if (!is15 && (pointSensor610Flag & 0x01)) {
       return;
     } else if (!is15) {
+      pointSensor610Flag |= 0x01;
       playerScore += pointValue_1;
     }
   } 
   if (impulsePeak >= pointValue_2_threshold - point_tolerance && impulsePeak <= pointValue_2_threshold + point_tolerance){     
-    if (is15 && (pointSensor15Flag &= 0x02)) {
-      pointSensor15Flag |= 0x02;
+    if (is15 && (pointSensor15Flag & 0x02)) {
       return;
     } else if (is15) {
+      pointSensor15Flag |= 0x02;
       playerScore += pointValue_2;
     }
 
-    if (!is15 && (pointSensor610Flag &= 0x02)) {
-      pointSensor610Flag |= 0x02;
+    if (!is15 && (pointSensor610Flag & 0x02)) {
       return;
     } else if (!is15) {
+      pointSensor610Flag |= 0x02;
       playerScore += pointValue_2;
     }
   } 
   if (impulsePeak >= pointValue_3_threshold - point_tolerance && impulsePeak <= pointValue_3_threshold + point_tolerance){     
-    if (is15 && (pointSensor15Flag &= 0x04)) {
-      pointSensor15Flag |= 0x04;
+    if (is15 && (pointSensor15Flag & 0x04)) {
       return;
     } else if (is15) {
+      pointSensor15Flag |= 0x04;
       playerScore += pointValue_3;
     }
 
-    if (!is15 && (pointSensor610Flag &= 0x04)) {
-      pointSensor610Flag |= 0x04;
+    if (!is15 && (pointSensor610Flag & 0x04)) {
       return;
     } else if (!is15) {
+      pointSensor610Flag |= 0x04;
       playerScore += pointValue_3;
     }
   } 
   if (impulsePeak >= pointValue_4_threshold - point_tolerance && impulsePeak <= pointValue_4_threshold + point_tolerance){     
-    if (is15 && (pointSensor15Flag &= 0x08)) {
-      pointSensor15Flag |= 0x08;
+    if (is15 && (pointSensor15Flag & 0x08)) {
       return;
     } else if (is15) {
+      pointSensor15Flag |= 0x08;
       playerScore += pointValue_4;
     }
 
-    if (!is15 && (pointSensor610Flag &= 0x08)) {
-      pointSensor610Flag |= 0x08;
+    if (!is15 && (pointSensor610Flag & 0x08)) {
       return;
     } else if (!is15) {
+      pointSensor610Flag |= 0x08;
       playerScore += pointValue_4;
     }
   } 
   if (impulsePeak >= pointValue_5_threshold - point_tolerance && impulsePeak <= pointValue_5_threshold + point_tolerance){     
-    if (is15 && (pointSensor15Flag &= 0x10)) {
-      pointSensor15Flag |= 0x10;
+    if (is15 && (pointSensor15Flag & 0x10)) {
       return;
     } else if (is15) {
+      pointSensor15Flag |= 0x10;
       playerScore += pointValue_5;
     }
 
-    if (!is15 && (pointSensor610Flag &= 0x10)) {
-      pointSensor610Flag |= 0x10;
+    if (!is15 && (pointSensor610Flag & 0x10)) {
       return;
     } else if (!is15) {
+      pointSensor610Flag |= 0x10;
       playerScore += pointValue_5;
     }
   } 
